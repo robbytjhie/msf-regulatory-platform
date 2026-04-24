@@ -1,9 +1,11 @@
-# Regulatory Platform — Setup Guide (Windows 11 PowerShell)
+# Regulatory Platform — Setup Guide (Windows Desktop)
 
 ## Prerequisites
-- **Java 17+** (`java -version`)
+- **Java 21 recommended** (`java -version`)
 - **Maven** (bundled via `mvnw.cmd`) 
 - **Node.js + npm** (for React frontend)
+- **Docker Desktop** (for Docker/Minikube flows)
+- **Minikube + kubectl** (optional, for Kubernetes local deployment)
 
 ---
 
@@ -37,7 +39,17 @@ Open: **http://localhost:5173/login**
 
 ---
 
-## Demo Credentials
+## Authentication Model (Current)
+
+- Login is **email/password** (`POST /api/auth/login`)
+- Backend returns a **JWT bearer token**
+- Frontend stores token and sends `Authorization: Bearer <token>` for protected APIs
+- Role-based access:
+  - `OFFICER`
+  - `OPERATOR`
+  - `ADMIN`
+
+Demo accounts:
 
 | Role     | Email                 | Password   |
 |----------|-----------------------|------------|
@@ -58,6 +70,41 @@ Open: **http://localhost:5173/login**
 H2 Console settings:
 - JDBC URL: `jdbc:h2:mem:regulatorydb`
 - Username: `sa` / Password: *(blank)*
+
+---
+
+## Docker Run (Windows)
+
+```powershell
+cd d:\MSF
+docker compose up --build
+```
+
+Open: **http://localhost:3000**
+
+---
+
+## Minikube Run (Windows + Docker Desktop)
+
+1. Start Docker Desktop and wait until engine is running.
+2. Ensure local context is Minikube (not cloud cluster).
+
+```powershell
+cd d:\MSF
+minikube start --driver=docker
+kubectl config use-context minikube
+minikube -p minikube docker-env --shell powershell | Invoke-Expression
+docker build -t msf/backend:latest .\backend
+docker build -t msf/auth-node:latest .\auth-node
+docker build -t msf/frontend-react:latest .\frontend-react
+kubectl apply -f .\infra\k8s\msf.yaml
+kubectl -n msf rollout status deploy/backend
+kubectl -n msf rollout status deploy/auth-node
+kubectl -n msf rollout status deploy/frontend-react
+minikube service frontend-react -n msf --url
+```
+
+If you see `ImagePullBackOff`, rebuild images after running `minikube docker-env`.
 
 ---
 

@@ -5,11 +5,16 @@ lifecycle between government officers and operators.
 
 ---
 
-## Quick Start (Refactored Stack)
+## Quick Start
 
-This repository now includes:
+This repository includes:
 - `backend` (Spring Boot + H2 in-memory)
 - `frontend-react` (Vite + React)
+- `auth-node` (Fastify helper service, optional for local run)
+
+Open these docs for full bootstrap:
+- Windows desktop setup: `SETUP.md`
+- Ubuntu server/WSL setup: `README.md` section "Run on Ubuntu"
 
 ### Local Dev (2 terminals)
 
@@ -24,9 +29,9 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:5173/login`.
 
-Login with previous credentials:
+Demo accounts:
 - Officer: `officer@gov.sg / password`
 - Operator (ACME): `operator@acme.sg / password`
 - Operator (Beta): `operator2@beta.sg / password`
@@ -51,6 +56,19 @@ cd infra/k8s
 minikube service frontend-react -n msf --url
 ```
 
+For first-time local Minikube use:
+1. Start Docker Desktop (Windows) or Docker daemon (Ubuntu).
+2. Start Minikube:
+   - `minikube start --driver=docker`
+3. Build images into Minikube Docker:
+   - `minikube -p minikube docker-env --shell powershell | Invoke-Expression` (Windows PowerShell)
+   - `eval "$(minikube -p minikube docker-env)"` (Ubuntu bash)
+4. Build and deploy:
+   - `docker build -t msf/backend:latest ./backend`
+   - `docker build -t msf/auth-node:latest ./auth-node`
+   - `docker build -t msf/frontend-react:latest ./frontend-react`
+   - `kubectl apply -f infra/k8s/msf.yaml`
+
 ---
 
 ## Security Scans
@@ -58,6 +76,100 @@ minikube service frontend-react -n msf --url
 - SonarCloud: configured via `sonar-project.properties` and GitHub Action.
 - Trivy: GitHub Action step `Trivy filesystem scan`.
 - Set `SONAR_TOKEN` in repository secrets.
+
+---
+
+## Authentication
+
+Authentication uses **email/password login + JWT bearer token**.
+
+- Login endpoint: `POST /api/auth/login`
+- Backend issues signed JWT (HS256) via `JwtService`
+- Frontend stores token in `localStorage` and sends `Authorization: Bearer <token>`
+- Security enforcement is done by `JwtAuthFilter` + `SecurityConfig`
+- Roles:
+  - `OFFICER`
+  - `OPERATOR`
+  - `ADMIN`
+
+Authorization is role-based at endpoint level:
+- `/api/officer/**` -> `ROLE_OFFICER`
+- `/api/operator/**` -> `ROLE_OPERATOR`
+- `/api/notifications/**` -> authenticated officer/operator/admin
+
+JWT secret source:
+- `app.jwt.secret` from environment variable `APP_JWT_SECRET`
+- dev fallback is set in `application.properties` for local testing
+
+---
+
+## Run on Ubuntu (From Scratch)
+
+These steps work for Ubuntu server or WSL Ubuntu.
+
+### 1) Prerequisites
+
+```bash
+sudo apt update
+sudo apt install -y openjdk-21-jdk maven nodejs npm docker.io docker-compose-plugin git
+```
+
+Optional: ensure Java 21 is default
+
+```bash
+sudo update-alternatives --config java
+sudo update-alternatives --config javac
+java -version
+mvn -version
+```
+
+### 2) Clone and run (dev mode)
+
+```bash
+git clone https://github.com/robbytjhie/msf-regulatory-platform.git
+cd msf-regulatory-platform
+```
+
+Terminal 1:
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+Terminal 2:
+
+```bash
+cd frontend-react
+npm install
+npm run dev -- --host
+```
+
+Open `http://localhost:5173/login`.
+
+### 3) Run with Docker Compose
+
+```bash
+cd msf-regulatory-platform
+sudo service docker start
+docker compose up --build
+```
+
+Open `http://localhost:3000`.
+
+### 4) Run with Minikube (Ubuntu)
+
+```bash
+minikube start --driver=docker
+kubectl config use-context minikube
+eval "$(minikube -p minikube docker-env)"
+docker build -t msf/backend:latest ./backend
+docker build -t msf/auth-node:latest ./auth-node
+docker build -t msf/frontend-react:latest ./frontend-react
+kubectl apply -f infra/k8s/msf.yaml
+kubectl -n msf get pods
+minikube service frontend-react -n msf --url
+```
 
 ---
 
