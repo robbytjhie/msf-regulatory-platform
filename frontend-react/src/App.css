@@ -1,0 +1,181 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", Arial, sans-serif;
+  background: #f5f5f0;
+  color: #1a1a18;
+}
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.login-card, .card {
+  background: #fff;
+  border: 1px solid #d4d4cc;
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.08);
+}
+.login-card { width: min(620px, 100%); padding: 28px; }
+.sub { color: #5c5c58; }
+.button-grid { display: grid; gap: 12px; margin-top: 16px; }
+.field {
+  border: 1px solid #d4d4cc;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+.btn {
+  border: 1px solid #1a3a5c;
+  background: #1a3a5c;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+.btn:hover:not(:disabled) { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.99); }
+.btn.secondary { background: #fff; color: #1a3a5c; }
+.btn:disabled {
+  background: #e6e6df !important;
+  border-color: #c8c8bf !important;
+  color: #8a8a84 !important;
+  cursor: not-allowed !important;
+  box-shadow: none;
+}
+.app-shell { max-width: 980px; margin: 0 auto; padding: 24px; }
+.top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.card { padding: 16px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid #e0e0d7; text-align: left; padding: 10px; }
+.error { color: #b03024; }
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-blue { background: #e8f0f8; color: #1a3a5c; }
+.badge-amber { background: #fef7e8; color: #5c3d00; }
+.badge-red { background: #fef0ee; color: #7a1f00; }
+.badge-green { background: #eaf5ef; color: #1a4d2e; }
+.badge-purple { background: #ede8f8; color: #2d1f5c; }
+.badge-gray { background: #f1f1ed; color: #5c5c58; }
+.demo-accounts {
+  margin-top: 14px;
+  border: 1px solid #e0e0d7;
+  border-radius: 6px;
+  background: #f9f9f5;
+  padding: 10px 12px;
+}
+.demo-title {
+  margin: 0 0 8px;
+  color: #5c5c58;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.demo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 14px;
+}
+.demo-fill {
+  border: 1px solid #1a3a5c;
+  border-radius: 4px;
+  background: #fff;
+  color: #1a3a5c;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.workflow-box {
+  margin: 12px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #c9d6e2;
+  border-left: 4px solid #1a3a5c;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f7fafc 0%, #f1f6fb 100%);
+}
+.workflow-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #1a3a5c;
+}
+.workflow-line {
+  margin: 4px 0;
+  font-size: 12px;
+  color: #4f4f49;
+  font-family: "IBM Plex Mono", Consolas, monospace;
+}
+.pager {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pager-info {
+  font-size: 12px;
+  color: #5c5c58;
+}
+.pager-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pager-btn {
+  min-width: 34px;
+  padding: 6px 10px;
+  border: 1px solid #c5c5bc;
+  background: #fff;
+  color: #1a1a18;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pager-btn[aria-current="page"] {
+  border-color: #1a3a5c;
+  background: #1a3a5c;
+  color: #fff;
+}
+.pager-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pager-extra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint {
+  font-size: 12px;
+  color: #5c5c58;
+}
+.alert-box {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #d4d4cc;
+  background: #f8f8f4;
+  font-size: 13px;
+}
+.alert-box.success {
+  border-color: #b7d8c4;
+  background: #edf8f1;
+  color: #1a4d2e;
+}
+.alert-box.error {
+  border-color: #e3b6b1;
+  background: #fdf0ee;
+  color: #7a1f00;
+}

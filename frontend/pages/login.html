@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — Regulatory & Licensing Platform</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="login-page">
+
+  <!-- Left: Login form -->
+  <div class="login-panel">
+    <div class="login-gov-badge">
+      <div class="login-gov-logo">RL</div>
+      <div>
+        <div class="login-gov-name">Government of Singapore<br>Regulatory &amp; Licensing</div>
+      </div>
+    </div>
+
+    <h1 class="login-title">Sign in to your account</h1>
+    <p class="login-sub">Enter your credentials to access the platform.</p>
+
+    <div id="login-error" class="alert alert-error hidden">
+      <div class="alert-title">Sign in failed</div>
+      <span id="login-error-msg">Invalid email or password.</span>
+    </div>
+
+    <form id="login-form" novalidate>
+      <div class="form-group">
+        <label for="email">Email address <span class="required">*</span></label>
+        <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email">
+        <div class="form-error hidden" id="email-err">Please enter a valid email address.</div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password <span class="required">*</span></label>
+        <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password">
+        <div class="form-error hidden" id="password-err">Please enter your password.</div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg mt-4" id="login-btn">
+        Sign in
+      </button>
+    </form>
+
+    <!-- Demo accounts quick-fill -->
+    <div class="demo-accounts mt-6">
+      <p>Demo accounts</p>
+      <div class="demo-account">
+        <span>🏛 Officer</span>
+        <strong>officer@gov.sg</strong>
+        <button class="demo-fill" onclick="fillDemo('officer@gov.sg','password')">Fill</button>
+      </div>
+      <div class="demo-account">
+        <span>🏢 Operator (ACME)</span>
+        <strong>operator@acme.sg</strong>
+        <button class="demo-fill" onclick="fillDemo('operator@acme.sg','password')">Fill</button>
+      </div>
+      <div class="demo-account">
+        <span>🏢 Operator (Beta)</span>
+        <strong>operator2@beta.sg</strong>
+        <button class="demo-fill" onclick="fillDemo('operator2@beta.sg','password')">Fill</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Hero panel -->
+  <div class="login-hero">
+    <div class="login-hero-content">
+      <div class="login-hero-title">Regulatory &amp;<br>Licensing Platform</div>
+      <p class="login-hero-sub">
+        A unified system for government licensing officers and operators to manage
+        the end-to-end application lifecycle — from submission to approval.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script src="../js/logger.js"></script>
+<script>
+  // Check already logged in
+  if (localStorage.getItem('token') && localStorage.getItem('user')) {
+    redirect();
+  }
+
+  function redirect() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    window.location.href = user.role === 'OFFICER'
+      ? '/pages/officer-dashboard.html'
+      : '/pages/operator-dashboard.html';
+  }
+
+  function fillDemo(email, password) {
+    document.getElementById('email').value = email;
+    document.getElementById('password').value = password;
+  }
+
+  const form = document.getElementById('login-form');
+  const loginBtn = document.getElementById('login-btn');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    let valid = true;
+
+    document.getElementById('email-err').classList.add('hidden');
+    document.getElementById('password-err').classList.add('hidden');
+    document.getElementById('login-error').classList.add('hidden');
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      document.getElementById('email-err').classList.remove('hidden');
+      valid = false;
+    }
+    if (!password) {
+      document.getElementById('password-err').classList.remove('hidden');
+      valid = false;
+    }
+    if (!valid) return;
+
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<span class="spinner"></span> Signing in…';
+
+    try {
+      const data = await api.login(email, password);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data));
+      redirect();
+    } catch (err) {
+      document.getElementById('login-error').classList.remove('hidden');
+      document.getElementById('login-error-msg').textContent = err.message || 'Sign in failed.';
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = 'Sign in';
+    }
+  });
+</script>
+</body>
+</html>

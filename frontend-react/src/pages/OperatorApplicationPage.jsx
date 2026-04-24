@@ -1,0 +1,124 @@
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { api } from "../apiClient";
+import { statusClass } from "../statusUtils";
+
+export default function OperatorApplicationPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [app, setApp] = useState(null);
+  const [flagged, setFlagged] = useState([]);
+  const [resubmit, setResubmit] = useState({ businessName: "", businessAddress: "", contactPhone: "", activityDescription: "" });
+  const [err, setErr] = useState("");
+  const [ok, setOk] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [respondingId, setRespondingId] = useState(null);
+
+  useEffect(() => {
+    api.getOperatorApplication(id).then(setApp).catch((e) => setErr(e.message));
+    api.getFlaggedItems(id).then(setFlagged).catch(() => {});
+  }, [id]);
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
+  const submitResubmit = async () => {
+    if (!canResubmit) return;
+    if (!window.confirm("Submit resubmission now?")) return;
+    try {
+      setSubmitting(true);
+      setErr("");
+      setOk("");
+      const updated = await api.resubmitApplication(id, resubmit);
+      setApp(updated);
+      setOk("Resubmission submitted successfully.");
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const respond = async (itemId) => {
+    const message = window.prompt("Enter response");
+    if (!message) return;
+    if (!window.confirm("Submit this clarification response?")) return;
+    try {
+      setRespondingId(itemId);
+      await api.respondToItem(itemId, message);
+      const items = await api.getFlaggedItems(id);
+      setFlagged(items);
+      setOk("Clarification response submitted.");
+      setErr("");
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
+  if (!app) return <main className="app-shell">{err ? <p className="error">{err}</p> : <p>Loading...</p>}</main>;
+
+  const canResubmit = app.statusLabel === "Pending Pre-Site Resubmission" || app.statusLabel === "Awaiting Post-Site Resubmission";
+
+  return (
+    <main className="app-shell">
+      <header className="top">
+        <h2>{app.businessName}</h2>
+        <div className="top">
+          <button className="btn secondary" onClick={() => navigate("/operator/dashboard")}>Back</button>
+          <button className="btn secondary" onClick={logout}>Logout</button>
+        </div>
+      </header>
+      <section className="card">
+        <h3>{app.referenceNumber} <span className={`badge ${statusClass(app.statusLabel)}`}>{app.statusLabel}</span></h3>
+        <p>Submission Round #{app.submissionRound}</p>
+        <p><strong>Final Outcome:</strong> {app.statusLabel === "Approved" || app.statusLabel === "Rejected" ? app.statusLabel : "In Progress"}</p>
+        {err ? <div className="alert-box error">{err}</div> : null}
+        {ok ? <div className="alert-box success">{ok}</div> : null}
+        {app.officerComments?.length ? (
+          <>
+            <h4>Officer Feedback</h4>
+            {app.officerComments.map((c) => <p key={c.id}>- {c.commentText}</p>)}
+          </>
+        ) : null}
+        <h4>Resubmit Updated Fields</h4>
+        {!canResubmit ? <div className="hint">Resubmission is only available when status is Pending Pre-Site Resubmission or Awaiting Post-Site Resubmission.</div> : null}
+        <div className="button-grid">
+          <input className="field" placeholder="Business Name (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessName: e.target.value }))} />
+          <input className="field" placeholder="Business Address (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessAddress: e.target.value }))} />
+          <input className="field" placeholder="Contact Phone (optional)" onChange={(e) => setResubmit((r) => ({ ...r, contactPhone: e.target.value }))} />
+          <textarea className="field" placeholder="Activity Description (optional)" onChange={(e) => setResubmit((r) => ({ ...r, activityDescription: e.target.value }))} />
+          <button className="btn" disabled={!canResubmit || submitting} onClick={submitResubmit}>
+            {submitting ? "Submitting..." : "Submit Resubmission"}
+          </button>
+        </div>
+        {flagged.length ? (
+          <>
+            <h4>Flagged Checklist Items</h4>
+            <table>
+              <thead><tr><th>Code</th><th>Title</th><th>Comment</th><th>Action</th></tr></thead>
+              <tbody>
+                {flagged.map((f) => (
+                  <tr key={f.id}>
+                    <td>{f.itemCode}</td>
+                    <td>{f.itemTitle}</td>
+                    <td>{f.officerComment}</td>
+                    <td>
+                      <button className="btn secondary" disabled={respondingId === f.id} onClick={() => respond(f.id)}>
+                        {respondingId === f.id ? "Submitting..." : "Respond"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ) : null}
+      </section>
+    </main>
+  );
+}

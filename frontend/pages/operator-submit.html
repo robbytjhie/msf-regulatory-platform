@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Application — Regulatory Platform</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-title">New Licence Application</div>
+      <div class="topbar-breadcrumb">
+        <span style="cursor:pointer" onclick="window.location.href='/pages/operator-dashboard.html'">My Applications</span>
+        › New Application
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-content-inner">
+
+        <!-- Step progress -->
+        <div class="progress-steps mb-8" id="steps-bar">
+          <div class="step active" id="step-ind-1">
+            <div class="step-dot">1</div>
+            <div class="step-label">Business Info</div>
+          </div>
+          <div class="step" id="step-ind-2">
+            <div class="step-dot">2</div>
+            <div class="step-label">Documents</div>
+          </div>
+          <div class="step" id="step-ind-3">
+            <div class="step-dot">3</div>
+            <div class="step-label">Review & Submit</div>
+          </div>
+        </div>
+
+        <div id="step-content"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script src="../js/layout.js"></script>
+<script src="../js/logger.js"></script>
+<script>
+const user = requireAuth('OPERATOR');
+if (user) init();
+
+let currentStep = 1;
+const formData = {
+  businessName: '', businessType: '', businessAddress: '',
+  contactPhone: '', activityDescription: ''
+};
+let uploadedFiles = []; // { file: File, category: string, aiStatus: string }
+
+function init() {
+  document.getElementById('sidebar').innerHTML = renderSidebar(user, 'submit');
+  renderStep(1);
+}
+
+function setStep(n) {
+  currentStep = n;
+  [1,2,3].forEach(i => {
+    const ind = document.getElementById(`step-ind-${i}`);
+    ind.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
+    ind.querySelector('.step-dot').textContent = i < n ? '✓' : i;
+  });
+  renderStep(n);
+}
+
+function renderStep(n) {
+  const el = document.getElementById('step-content');
+  if (n === 1) el.innerHTML = renderStep1();
+  else if (n === 2) el.innerHTML = renderStep2();
+  else el.innerHTML = renderStep3();
+  if (n === 2) initDropzone();
+}
+
+// ── Step 1: Business Info ─────────────────────────────────────────
+function renderStep1() {
+  return `
+    <div class="card">
+      <div class="card-header"><div class="card-title">Business Information</div></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label for="businessName">Business / Trading Name <span class="required">*</span></label>
+          <input type="text" id="businessName" value="${escHtml(formData.businessName)}"
+                 placeholder="e.g. ACME Food Catering Pte Ltd">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="businessType">Business Type <span class="required">*</span></label>
+            <select id="businessType">
+              <option value="">— Select type —</option>
+              ${['Food & Beverage','Retail','Manufacturing','Healthcare','Education',
+                 'Construction','Transportation','Financial Services','Others']
+                .map(t => `<option value="${t}" ${formData.businessType===t?'selected':''}>${t}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="contactPhone">Contact Phone</label>
+            <input type="tel" id="contactPhone" value="${escHtml(formData.contactPhone)}"
+                   placeholder="+65 9123 4567">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="businessAddress">Business Address <span class="required">*</span></label>
+          <textarea id="businessAddress" rows="2"
+                    placeholder="Full address including postal code">${escHtml(formData.businessAddress)}</textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="activityDescription">Description of Business Activities <span class="required">*</span></label>
+          <div class="hint">Describe what your business does and the nature of activities that require licensing.</div>
+          <textarea id="activityDescription" rows="5"
+                    placeholder="Provide a detailed description of your business activities, including scale of operations, products or services offered, and any regulatory-relevant details.">${escHtml(formData.activityDescription)}</textarea>
+        </div>
+      </div>
+      <div class="card-footer">
+        <button class="btn btn-secondary" onclick="window.location.href='/pages/operator-dashboard.html'">Cancel</button>
+        <button class="btn btn-primary" onclick="submitStep1()">Continue to Documents →</button>
+      </div>
+    </div>
+  `;
+}
+
+function submitStep1() {
+  const fields = [
+    ['businessName', 'Business name'],
+    ['businessType', 'Business type'],
+    ['businessAddress', 'Business address'],
+    ['activityDescription', 'Activity description']
+  ];
+
+  let valid = true;
+  fields.forEach(([id, label]) => {
+    const el = document.getElementById(id);
+    if (!el.value.trim()) {
+      el.classList.add('error');
+      el.addEventListener('input', () => el.classList.remove('error'), { once: true });
+      if (valid) { el.focus(); valid = false; }
+    }
+  });
+
+  if (!valid) { toast('Please fill in all required fields', 'error'); return; }
+
+  formData.businessName = document.getElementById('businessName').value.trim();
+  formData.businessType = document.getElementById('businessType').value;
+  formData.businessAddress = document.getElementById('businessAddress').value.trim();
+  formData.contactPhone = document.getElementById('contactPhone').value.trim();
+  formData.activityDescription = document.getElementById('activityDescription').value.trim();
+  setStep(2);
+}
+
+// ── Step 2: Documents ─────────────────────────────────────────────
+function renderStep2() {
+  return `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Supporting Documents</div>
+        <span class="text-muted text-sm">Upload all required supporting documents</span>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info mb-6">
+          <div class="alert-title">Required Documents</div>
+          Please upload: Business Registration Certificate, Site Plan / Floor Plan,
+          and any relevant safety certificates or permits.
+        </div>
+
+        <!-- Drop zone -->
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+          <div class="dropzone-icon">📄</div>
+          <div class="dropzone-label">Drop files here or click to browse</div>
+          <div class="dropzone-hint">PDF, JPG, PNG — max 10MB per file</div>
+        </div>
+        <input type="file" id="file-input" multiple accept=".pdf,.jpg,.jpeg,.png"
+               style="display:none" onchange="onFileSelect(this.files)">
+
+        <div class="file-list" id="file-list">
+          ${uploadedFiles.length ? uploadedFiles.map((f,i) => renderFileItem(f,i)).join('') : ''}
+        </div>
+      </div>
+      <div class="card-footer">
+        <button class="btn btn-secondary" onclick="setStep(1)">← Back</button>
+        <button class="btn btn-secondary" onclick="setStep(3)">Skip for now</button>
+        <button class="btn btn-primary" onclick="setStep(3)">
+          Continue to Review →
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+const CATEGORIES = [
+  'business_registration', 'site_plan', 'fire_safety',
+  'food_hygiene', 'electrical_cert', 'other'
+];
+
+function renderFileItem(f, idx) {
+  return `
+    <div class="file-item" id="file-item-${idx}">
+      <span>📄</span>
+      <span class="file-item-name">${escHtml(f.file.name)}</span>
+      <select onchange="uploadedFiles[${idx}].category=this.value"
+              style="font-size:12px;padding:3px 6px;border:1px solid var(--c-border);border-radius:4px">
+        ${CATEGORIES.map(c => `<option value="${c}" ${f.category===c?'selected':''}>${c.replace(/_/g,' ')}</option>`).join('')}
+      </select>
+      <span class="file-item-size">${fmtBytes(f.file.size)}</span>
+      ${aiVerificationBadge(f.aiStatus)}
+      <button class="file-remove" onclick="removeFile(${idx})">✕</button>
+    </div>
+  `;
+}
+
+function initDropzone() {
+  const dz = document.getElementById('dropzone');
+  if (!dz) return;
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    onFileSelect(e.dataTransfer.files);
+  });
+}
+
+function onFileSelect(files) {
+  Array.from(files).forEach(file => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast(`${file.name} exceeds 10MB limit`, 'error'); return;
+    }
+    uploadedFiles.push({ file, category: 'other', aiStatus: 'PENDING' });
+  });
+  refreshFileList();
+  // Simulate AI verification
+  uploadedFiles.forEach((_, idx) => {
+    if (uploadedFiles[idx].aiStatus === 'PENDING') {
+      setTimeout(() => {
+        if (!uploadedFiles[idx]) return;
+        uploadedFiles[idx].aiStatus = Math.random() > 0.15 ? 'PASSED' : 'FLAGGED';
+        refreshFileList();
+      }, 1500 + idx * 500);
+    }
+  });
+}
+
+function removeFile(idx) {
+  uploadedFiles.splice(idx, 1);
+  refreshFileList();
+}
+
+function refreshFileList() {
+  const list = document.getElementById('file-list');
+  if (!list) return;
+  list.innerHTML = uploadedFiles.map((f,i) => renderFileItem(f,i)).join('');
+}
+
+// ── Step 3: Review & Submit ───────────────────────────────────────
+function renderStep3() {
+  return `
+    <div class="card">
+      <div class="card-header"><div class="card-title">Review Your Application</div></div>
+      <div class="card-body">
+        <div class="section-divider">Business Information</div>
+        <div class="detail-grid" style="margin-bottom:24px">
+          ${reviewRow('Business Name', formData.businessName)}
+          ${reviewRow('Business Type', formData.businessType)}
+          ${reviewRow('Business Address', formData.businessAddress)}
+          ${reviewRow('Contact Phone', formData.contactPhone || '—')}
+        </div>
+
+        <div class="section-divider">Activity Description</div>
+        <p style="margin-bottom:24px;line-height:1.7;font-size:14px;white-space:pre-wrap">
+          ${escHtml(formData.activityDescription)}
+        </p>
+
+        <div class="section-divider">Uploaded Documents (${uploadedFiles.length})</div>
+        ${uploadedFiles.length ? `
+          <div class="file-list" style="margin-bottom:16px">
+            ${uploadedFiles.map(f => `
+              <div class="file-item">
+                <span>📄</span>
+                <span class="file-item-name">${escHtml(f.file.name)}</span>
+                <span class="comment-section">${f.category.replace(/_/g,' ')}</span>
+                <span class="file-item-size">${fmtBytes(f.file.size)}</span>
+                ${aiVerificationBadge(f.aiStatus)}
+              </div>
+            `).join('')}
+          </div>
+        ` : '<p class="text-muted text-sm mb-6">No documents uploaded. You can add them after submission.</p>'}
+
+        <div class="alert alert-warning">
+          <div class="alert-title">Declaration</div>
+          By submitting this application, I confirm that all information provided is accurate
+          and complete to the best of my knowledge.
+        </div>
+      </div>
+      <div class="card-footer">
+        <button class="btn btn-secondary" onclick="setStep(2)">← Back</button>
+        <button class="btn btn-primary btn-lg" id="submit-btn" onclick="submitApplication()">
+          Submit Application
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function reviewRow(label, value) {
+  return `
+    <div class="detail-row">
+      <div class="detail-label">${escHtml(label)}</div>
+      <div class="detail-value">${escHtml(value)}</div>
+    </div>`;
+}
+
+async function submitApplication() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Submitting…';
+
+  try {
+    const result = await api.submitApplication(formData);
+    toast('Application submitted successfully!');
+    setTimeout(() => window.location.href = `/pages/operator-application.html?id=${result.id}`, 800);
+  } catch (err) {
+    toast(err.message, 'error');
+    btn.disabled = false;
+    btn.innerHTML = 'Submit Application';
+  }
+}
+</script>
+</body>
+</html>

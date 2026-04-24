@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Applications — Regulatory Platform</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-title">My Applications</div>
+      <div class="topbar-breadcrumb">
+        <span>Operator Portal</span> › Dashboard
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Banner: applications needing action -->
+      <div id="action-banner"></div>
+
+      <div class="flex-between mb-6">
+        <div class="page-header" style="margin-bottom:0">
+          <h1>Your Licence Applications</h1>
+          <p>Track and manage your regulatory applications.</p>
+        </div>
+        <button class="btn btn-primary" onclick="window.location.href='/pages/operator-submit.html'">
+          ＋ New Application
+        </button>
+      </div>
+
+      <div id="app-list">
+        <div class="loading-overlay"><span class="spinner"></span></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script src="../js/layout.js"></script>
+<script src="../js/logger.js"></script>
+<script>
+const user = requireAuth('OPERATOR');
+if (user) init();
+
+const RESUBMIT_STATUSES = [
+  'Pending Pre-Site Resubmission', 'Awaiting Post-Site Resubmission'
+];
+
+async function init() {
+  document.getElementById('sidebar').innerHTML = renderSidebar(user, 'dashboard');
+  try {
+    const apps = await api.listMyApplications();
+    renderBanner(apps);
+    renderApps(apps);
+  } catch (err) {
+    document.getElementById('app-list').innerHTML =
+      `<div class="alert alert-error"><div class="alert-title">Error</div>${escHtml(err.message)}</div>`;
+  }
+}
+
+function renderBanner(apps) {
+  const needsAction = apps.filter(a => RESUBMIT_STATUSES.includes(a.statusLabel));
+  if (!needsAction.length) return;
+  document.getElementById('action-banner').innerHTML = `
+    <div class="alert alert-warning mb-6">
+      <div class="alert-title">⚠ Action required on ${needsAction.length} application${needsAction.length > 1 ? 's' : ''}</div>
+      The licensing officer has requested additional information.
+      Click an application below to view feedback and resubmit.
+    </div>
+  `;
+}
+
+function renderApps(apps) {
+  if (!apps.length) {
+    document.getElementById('app-list').innerHTML = `
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-state-icon">📋</div>
+          <h3>No applications yet</h3>
+          <p>Submit your first licence application to get started.</p>
+          <button class="btn btn-primary mt-4" onclick="window.location.href='/pages/operator-submit.html'">
+            ＋ Start Application
+          </button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('app-list').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      ${apps.map(app => renderAppCard(app)).join('')}
+    </div>
+  `;
+}
+
+function renderAppCard(app) {
+  const needsAction = RESUBMIT_STATUSES.includes(app.statusLabel);
+  const isApproved = app.statusLabel === 'Approved';
+  const isRejected = app.statusLabel === 'Rejected';
+
+  return `
+    <div class="card" style="${needsAction ? 'border-left:4px solid var(--c-accent)' : isApproved ? 'border-left:4px solid #2d7a4e' : ''}">
+      <div class="card-body" style="padding:20px 24px">
+        <div class="flex-between">
+          <div style="flex:1">
+            <div class="flex-center gap-3 mb-2">
+              <span class="ref-num">${escHtml(app.referenceNumber)}</span>
+              ${statusBadge(app.statusLabel)}
+              ${needsAction ? '<span style="font-size:11px;color:var(--c-accent);font-weight:700">● ACTION REQUIRED</span>' : ''}
+              ${isApproved ? '<span style="font-size:11px;color:var(--c-success);font-weight:700">● APPROVED</span>' : ''}
+            </div>
+            <div style="font-size:18px;font-weight:700;margin-bottom:4px">${escHtml(app.businessName)}</div>
+            <div class="text-muted text-sm">
+              Submission round #${app.submissionRound} · Last updated ${fmtDate(app.lastModifiedAt)}
+            </div>
+          </div>
+          <div>
+            <button class="btn ${needsAction ? 'btn-primary' : 'btn-secondary'}"
+                    onclick="window.location.href='/pages/operator-application.html?id=${app.id}'">
+              ${needsAction ? 'View Feedback & Resubmit →' : 'View Details →'}
+            </button>
+          </div>
+        </div>
+
+        <!-- Status progress indicator -->
+        ${renderMiniProgress(app.statusLabel)}
+      </div>
+    </div>
+  `;
+}
+
+const PROGRESS_STEPS = [
+  ['Submitted', 'Submitted'],
+  ['Under Review', 'Review'],
+  ['Pre-Site Resubmitted', 'Updated'],
+  ['Pending Site Visit', 'Site Visit'],
+  ['Site Visit Done', 'Inspected'],
+  ['Approved', 'Outcome'],
+];
+
+function renderMiniProgress(statusLabel) {
+  const stepMap = {
+    'Submitted': 0,
+    'Under Review': 1,
+    'Pending Pre-Site Resubmission': 1,
+    'Pre-Site Resubmitted': 2,
+    'Pending Site Visit': 3,
+    'Site Visit Done': 4,
+    'Pending Post-Site Clarification': 4,
+    'Awaiting Post-Site Resubmission': 4,
+    'Post-Site Resubmitted': 4,
+    'Approved': 5,
+    'Rejected': 5,
+  };
+
+  const current = stepMap[statusLabel] ?? 1;
+
+  return `
+    <div class="progress-steps" style="margin-top:16px;margin-bottom:0">
+      ${PROGRESS_STEPS.map(([_, label], i) => `
+        <div class="step ${i < current ? 'done' : i === current ? 'active' : ''}">
+          <div class="step-dot">${i < current ? '✓' : i + 1}</div>
+          <div class="step-label">${label}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+</script>
+</body>
+</html>

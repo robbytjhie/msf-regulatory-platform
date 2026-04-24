@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Officer Dashboard — Regulatory Platform</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-title">Applications Dashboard</div>
+      <div class="topbar-breadcrumb">
+        <span>Officer Portal</span> › Dashboard
+      </div>
+    </header>
+
+    <main class="page-content">
+      <!-- Stats row -->
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total Applications</div>
+          <div class="stat-value" id="stat-total">—</div></div>
+        <div class="stat-card"><div class="stat-label">Needs Attention</div>
+          <div class="stat-value" id="stat-attention" style="color:var(--c-accent)">—</div>
+          <div class="stat-sub">Awaiting officer action</div></div>
+        <div class="stat-card"><div class="stat-label">Resubmissions</div>
+          <div class="stat-value" id="stat-resub" style="color:#5c3d00">—</div>
+          <div class="stat-sub">Updated by operators</div></div>
+        <div class="stat-card"><div class="stat-label">Approved</div>
+          <div class="stat-value" id="stat-approved" style="color:var(--c-success)">—</div></div>
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">All Applications</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="search-input" placeholder="Search by name or reference…"
+                   style="width:240px;padding:7px 12px;font-size:13px;">
+          </div>
+        </div>
+
+        <div class="tabs" style="padding:0 24px;margin-bottom:0;">
+          <div class="tab active" data-filter="all">All</div>
+          <div class="tab" data-filter="needs-action">Needs Action</div>
+          <div class="tab" data-filter="in-progress">In Progress</div>
+          <div class="tab" data-filter="terminal">Completed</div>
+        </div>
+
+        <div class="table-wrap" id="table-wrap">
+          <div class="loading-overlay"><span class="spinner"></span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script src="../js/layout.js"></script>
+<script src="../js/logger.js"></script>
+<script>
+const user = requireAuth('OFFICER');
+if (user) init();
+
+let allApps = [];
+let activeFilter = 'all';
+let searchQuery = '';
+
+async function init() {
+  document.getElementById('sidebar').innerHTML = renderSidebar(user, 'dashboard');
+
+  try {
+    allApps = await api.listAllApplications();
+    renderStats(allApps);
+    renderTable();
+  } catch (err) {
+    document.getElementById('table-wrap').innerHTML =
+      `<div class="empty-state"><p class="text-muted">${escHtml(err.message)}</p></div>`;
+  }
+
+  // Tab filter
+  document.querySelectorAll('.tab[data-filter]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeFilter = tab.dataset.filter;
+      renderTable();
+    });
+  });
+
+  // Search
+  document.getElementById('search-input').addEventListener('input', e => {
+    searchQuery = e.target.value.toLowerCase();
+    renderTable();
+  });
+}
+
+const NEEDS_ACTION = new Set([
+  'APPLICATION_RECEIVED','PRE_SITE_RESUBMITTED',
+  'POST_SITE_CLARIFICATION_RESUBMITTED','SITE_VISIT_DONE'
+]);
+const IN_PROGRESS = new Set([
+  'UNDER_REVIEW','PENDING_PRE_SITE_RESUBMISSION','SITE_VISIT_SCHEDULED',
+  'AWAITING_POST_SITE_CLARIFICATION','PENDING_POST_SITE_RESUBMISSION','PENDING_APPROVAL'
+]);
+const TERMINAL = new Set(['APPROVED','REJECTED']);
+
+function filterApps(apps) {
+  let filtered = apps;
+  if (activeFilter === 'needs-action') filtered = apps.filter(a => NEEDS_ACTION.has(a.internalStatus));
+  else if (activeFilter === 'in-progress') filtered = apps.filter(a => IN_PROGRESS.has(a.internalStatus));
+  else if (activeFilter === 'terminal') filtered = apps.filter(a => TERMINAL.has(a.internalStatus));
+  if (searchQuery) {
+    filtered = filtered.filter(a =>
+      a.businessName.toLowerCase().includes(searchQuery) ||
+      a.referenceNumber.toLowerCase().includes(searchQuery) ||
+      (a.operatorName || '').toLowerCase().includes(searchQuery)
+    );
+  }
+  return filtered;
+}
+
+function renderStats(apps) {
+  document.getElementById('stat-total').textContent = apps.length;
+  document.getElementById('stat-attention').textContent =
+    apps.filter(a => NEEDS_ACTION.has(a.internalStatus)).length;
+  document.getElementById('stat-resub').textContent =
+    apps.filter(a => ['PRE_SITE_RESUBMITTED','POST_SITE_CLARIFICATION_RESUBMITTED']
+      .includes(a.internalStatus)).length;
+  document.getElementById('stat-approved').textContent =
+    apps.filter(a => a.internalStatus === 'APPROVED').length;
+}
+
+function goToApp(id) {
+  window.location.href = '/pages/officer-application.html?id=' + id;
+}
+
+function renderTable() {
+  const filtered = filterApps(allApps);
+  const wrap = document.getElementById('table-wrap');
+
+  if (!filtered.length) {
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <h3>No applications found</h3>
+        <p>Try adjusting your filter or search query.</p>
+      </div>`;
+    return;
+  }
+
+  // Sort: needs-action first, then by lastModifiedAt desc
+  filtered.sort((a, b) => {
+    const aN = NEEDS_ACTION.has(a.internalStatus) ? 0 : 1;
+    const bN = NEEDS_ACTION.has(b.internalStatus) ? 0 : 1;
+    if (aN !== bN) return aN - bN;
+    return new Date(b.lastModifiedAt) - new Date(a.lastModifiedAt);
+  });
+
+  wrap.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Reference</th>
+          <th>Business</th>
+          <th>Operator</th>
+          <th>Status</th>
+          <th>Round</th>
+          <th>Last Updated</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filtered.map(app => `
+          <tr class="table-link" onclick="goToApp(${app.id})">
+            <td><span class="ref-num">${escHtml(app.referenceNumber)}</span></td>
+            <td style="font-weight:600">${escHtml(app.businessName)}</td>
+            <td class="text-muted">${escHtml(app.operatorName || '—')}</td>
+            <td>${statusBadge(app.statusLabel)}
+                ${NEEDS_ACTION.has(app.internalStatus)
+                  ? '<span style="margin-left:4px;font-size:10px;color:var(--c-accent);font-weight:700">● ACTION</span>'
+                  : ''}
+            </td>
+            <td class="text-muted text-mono">#${app.submissionRound}</td>
+            <td class="text-muted text-sm">${fmtDateShort(app.lastModifiedAt)}</td>
+            <td><button class="btn btn-secondary btn-sm" style="pointer-events:none">Review →</button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    container_name: msf-backend
+    ports:
+      - "8080:8080"
+
+  auth-node:
+    build: ./auth-node
+    container_name: msf-auth-node
+    environment:
+      - PORT=3001
+      - BACKEND_URL=http://backend:8080
+    depends_on:
+      - backend
+    ports:
+      - "3001:3001"
+
+  frontend-react:
+    build: ./frontend-react
+    container_name: msf-frontend-react
+    depends_on:
+      - backend
+      - auth-node
+    ports:
+      - "3000:80"
