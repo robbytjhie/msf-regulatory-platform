@@ -21,6 +21,9 @@
         <jjwt.version>0.12.5</jjwt.version>
         <jacoco.minimum.line.coverage>0.80</jacoco.minimum.line.coverage>
         <jacoco.minimum.branch.coverage>0.70</jacoco.minimum.branch.coverage>
+        <tomcat.version>10.1.54</tomcat.version>
+        <spring-security.version>6.5.9</spring-security.version>
+        <spring-framework.version>6.2.11</spring-framework.version>
     </properties>
 
     <dependencies>
