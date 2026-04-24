@@ -127,14 +127,14 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Build backend classes for Sonar
+      - name: Build backend with coverage for Sonar
         working-directory: backend
         run: |
-          mvn -B -Dmaven.wagon.http.retryHandler.count=3 -DskipTests package
+          mvn -B -Dmaven.wagon.http.retryHandler.count=3 verify
 
-      - name: Build frontend for Sonar context
+      - name: Build frontend with coverage for Sonar context
         working-directory: frontend-react
-        run: npm ci && npm run build
+        run: npm ci && npm run test:unit -- --run --coverage && npm run build
 
       - name: SonarCloud Scan (push branches)
         if: github.event_name != 'pull_request'
