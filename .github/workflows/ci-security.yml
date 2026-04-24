@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  test-and-scan:
+  backend-tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,24 +28,100 @@ jobs:
         working-directory: backend
         run: mvn -B test
 
+  frontend-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Frontend install and build
         working-directory: frontend-react
         run: npm ci && npm run build
 
+  auth-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Auth service install
         working-directory: auth-node
         run: npm ci
+
+  sonar-scan:
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-build, auth-build]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build backend classes for Sonar
+        working-directory: backend
+        run: mvn -B -DskipTests package
+
+      - name: Build frontend for Sonar context
+        working-directory: frontend-react
+        run: npm ci && npm run build
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+  trivy-scan:
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-build, auth-build]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
           format: table
           severity: CRITICAL,HIGH
           exit-code: "1"
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-build, auth-build]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t msf/backend:ci ./backend
+
+      - name: Build auth image
+        run: docker build -t msf/auth-node:ci ./auth-node
+
+      - name: Build frontend image
+        run: docker build -t msf/frontend-react:ci ./frontend-react
