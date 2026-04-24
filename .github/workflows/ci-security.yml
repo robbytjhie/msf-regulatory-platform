@@ -5,6 +5,9 @@ on:
     branches: ["main", "master"]
   pull_request:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
@@ -26,7 +29,27 @@ jobs:
 
       - name: Backend tests
         working-directory: backend
-        run: mvn -B test
+        run: mvn -B verify
+
+  frontend-unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Frontend install
+        working-directory: frontend-react
+        run: npm ci
+
+      - name: Frontend unit tests
+        working-directory: frontend-react
+        run: npm run test:unit -- --run
 
   frontend-build:
     runs-on: ubuntu-latest
@@ -43,6 +66,30 @@ jobs:
       - name: Frontend install and build
         working-directory: frontend-react
         run: npm ci && npm run build
+
+  frontend-e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Frontend install
+        working-directory: frontend-react
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend-react
+        run: npx playwright install --with-deps chromium
+
+      - name: Frontend e2e tests
+        working-directory: frontend-react
+        run: npm run test:e2e
 
   auth-build:
     runs-on: ubuntu-latest
@@ -62,7 +109,7 @@ jobs:
 
   sonar-scan:
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-build, auth-build]
+    needs: [backend-tests, frontend-unit-tests, frontend-build, frontend-e2e, auth-build]
 
     steps:
       - name: Checkout
@@ -87,14 +134,31 @@ jobs:
         working-directory: frontend-react
         run: npm ci && npm run build
 
-      - name: SonarCloud Scan
+      - name: SonarCloud Scan (push branches)
+        if: github.event_name != 'pull_request'
         uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          args: >
+            -Dsonar.branch.name=${{ github.ref_name }}
+            -Dsonar.projectBaseDir=.
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: SonarCloud Scan (pull requests)
+        if: github.event_name == 'pull_request'
+        uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          args: >
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.head_ref }}
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
+            -Dsonar.projectBaseDir=.
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   trivy-scan:
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-build, auth-build]
+    needs: [backend-tests, frontend-unit-tests, frontend-build, frontend-e2e, auth-build]
 
     steps:
       - name: Checkout
@@ -111,7 +175,7 @@ jobs:
 
   docker-build:
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-build, auth-build]
+    needs: [sonar-scan, trivy-scan]
 
     steps:
       - name: Checkout
