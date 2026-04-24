@@ -2,7 +2,7 @@
 echo =============================================
 echo  Regulatory Platform - Dev Startup
 echo  Backend  -> http://localhost:8080
-echo  Frontend -> http://localhost:3000
+echo  Frontend -> http://localhost:5173
 echo =============================================
 echo.
 
@@ -13,12 +13,12 @@ REM Wait a few seconds for backend to start
 timeout /t 5 /nobreak >nul
 
 REM Start frontend server in a new window via helper script
-start "Frontend (port 3000)" cmd /k ""%~dp0start-frontend.cmd""
+start "Frontend (Vite 5173)" cmd /k ""%~dp0start-frontend.cmd""
 
 echo.
 echo Both servers starting in separate windows.
 echo.
-echo  Login page: http://localhost:3000/pages/login.html
+echo  Login page: http://localhost:5173/login
 echo  H2 Console: http://localhost:8080/h2-console
 echo.
 echo Demo credentials:

@@ -78,10 +78,10 @@ end-to-end lifecycle without over-engineering secondary concerns.
 H2 in-memory, Lombok, Bean Validation. Layered architecture: entity → repository →
 service → controller. No Spring MVC views — pure REST API.
 
-**Frontend:** Vanilla HTML/CSS/JS (no build step required). Intentionally chosen to
-keep the setup frictionless: `open pages/login.html` in a browser. The design system
-uses CSS custom properties for full theming; IBM Plex Sans/Mono for a distinctive
-government-utility aesthetic. A React or Next.js frontend would be the natural next step.
+**Frontend:** React + Vite (`frontend-react`) with route guards and role-based pages
+for officer/operator workflows. The design system keeps the same government-utility
+visual language (status badges, cards, workflow cues), with improved interaction states
+(loading, confirmation, pagination, and explicit pending-action labels).
 
 **Testing:** Unit tests on `StatusTransitionService` (the most critical business logic).
 Integration tests with MockMvc would be the next priority.

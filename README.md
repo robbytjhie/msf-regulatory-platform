@@ -1,6 +1,6 @@
 # Regulatory & Licensing Platform
 
-A Spring Boot + Vanilla JS system for managing the end-to-end licensing application
+A Spring Boot + React system for managing the end-to-end licensing application
 lifecycle between government officers and operators.
 
 ---
@@ -61,47 +61,6 @@ minikube service frontend-react -n msf --url
 
 ---
 
-## Legacy Quick Start
-
-### Prerequisites
-- Java 21+
-- Maven 3.9+ (or use the included `mvnw` wrapper)
-
-### Backend
-
-```bash
-cd backend
-./mvnw spring-boot:run
-```
-
-The server starts at **http://localhost:8080**.
-H2 console is available at **http://localhost:8080/h2-console**
-(JDBC URL: `jdbc:h2:mem:regulatorydb`, no password).
-
-Demo data is seeded automatically on startup:
-
-| Role | Email | Password |
-|---|---|---|
-| Officer | officer@gov.sg | password |
-| Operator (ACME) | operator@acme.sg | password |
-| Operator (Beta) | operator2@beta.sg | password |
-
-### Frontend
-
-No build step required. Open the pages directly in a browser:
-
-```bash
-open frontend/pages/login.html
-# or on Linux:
-xdg-open frontend/pages/login.html
-```
-
-> **CORS note:** The backend allows `localhost:*` origins. If you serve the frontend
-> from a local file (e.g. via `file://`), some browsers block cross-origin requests.
-> Use a simple dev server: `npx serve frontend` then open `http://localhost:3000/pages/login.html`
-
----
-
 ## Project Structure
 
 ```
@@ -116,19 +75,10 @@ regulatory-platform/
 │       ├── dto/             Request/Response records
 │       ├── security/        JWT filter, UserDetailsService
 │       └── config/          SecurityConfig, DataSeeder
-├── frontend/
-│   ├── css/style.css        Design system (CSS variables, components)
-│   ├── js/
-│   │   ├── api.js           Centralised fetch client
-│   │   └── layout.js        Shared utilities, sidebar, status helpers
-│   └── pages/
-│       ├── login.html
-│       ├── officer-dashboard.html
-│       ├── officer-application.html
-│       ├── officer-checklist.html
-│       ├── operator-dashboard.html
-│       ├── operator-submit.html
-│       └── operator-application.html
+├── frontend-react/
+│   ├── src/pages/           React pages (login, dashboards, details, checklist)
+│   ├── src/apiClient.js     Centralised fetch client
+│   └── src/statusUtils.js   Shared status + workflow helper utilities
 ├── SCOPE.md
 └── README.md
 ```
