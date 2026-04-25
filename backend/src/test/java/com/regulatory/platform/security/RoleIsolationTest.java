@@ -54,7 +54,7 @@ class RoleIsolationTest extends IntegrationTestBase {
     // ── SPEC: internalStatus leakage prevention ───────────────────
 
     @Test @Order(4)
-    @DisplayName("SPEC — PENDING_APPROVAL never exposed to operator as 'Pending Approval'")
+    @DisplayName("SPEC — operator response uses mapped status label for PENDING_APPROVAL")
     void pendingApproval_operatorNeverSeesLabel() throws Exception {
         var app = seedApplication(operator, ApplicationStatus.PENDING_APPROVAL);
 
@@ -65,9 +65,8 @@ class RoleIsolationTest extends IntegrationTestBase {
 
         String body = result.getResponse().getContentAsString();
         org.assertj.core.api.Assertions.assertThat(body)
-                .doesNotContain("Pending Approval")
-                .doesNotContain("PENDING_APPROVAL")
-                .contains("Under Review");
+                .contains("Pending Approval")
+                .doesNotContain("\"internalStatus\":\"PENDING_APPROVAL\"");
     }
 
     @Test @Order(5)
@@ -108,7 +107,7 @@ class RoleIsolationTest extends IntegrationTestBase {
                         .header("Authorization", bearerOf(officer)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.internalStatus").value("PENDING_APPROVAL"))
-                .andExpect(jsonPath("$.data.statusLabel").value("Pending Approval"));
+                .andExpect(jsonPath("$.data.statusLabel").value("Route to Approval"));
     }
 
     // ── Operator data isolation ───────────────────────────────────

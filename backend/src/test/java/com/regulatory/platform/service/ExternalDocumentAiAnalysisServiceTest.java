@@ -32,13 +32,13 @@ class ExternalDocumentAiAnalysisServiceTest {
     }
 
     @Test
-    @DisplayName("Returns empty when no API keys are configured")
-    void noKeys_returnsEmpty() {
+    @DisplayName("Falls back to deterministic local heuristic when no API keys are configured")
+    void noKeys_returnsHeuristicResult() {
         ExternalDocumentAiAnalysisService svc = new ExternalDocumentAiAnalysisService(new ObjectMapper());
         ReflectionTestUtils.setField(svc, "groqApiKey", "");
         ReflectionTestUtils.setField(svc, "huggingFaceToken", "");
 
-        assertThat(svc.analyze(sampleDoc())).isEmpty();
+        assertThat(svc.analyze(sampleDoc())).isPresent();
     }
 
     @Test
@@ -97,8 +97,8 @@ class ExternalDocumentAiAnalysisServiceTest {
     }
 
     @Test
-    @DisplayName("Returns empty when assistant text does not contain PASS or FLAG")
-    void groq_unparseableContent_returnsEmpty() throws Exception {
+    @DisplayName("Falls back to deterministic local heuristic when assistant text is unparseable")
+    void groq_unparseableContent_returnsHeuristicResult() throws Exception {
         try (MockWebServer server = new MockWebServer()) {
             server.start();
             server.enqueue(new MockResponse()
@@ -111,7 +111,7 @@ class ExternalDocumentAiAnalysisServiceTest {
             ReflectionTestUtils.setField(svc, "groqModel", "m");
             ReflectionTestUtils.setField(svc, "huggingFaceToken", "");
 
-            assertThat(svc.analyze(sampleDoc())).isEmpty();
+            assertThat(svc.analyze(sampleDoc())).isPresent();
         }
     }
 

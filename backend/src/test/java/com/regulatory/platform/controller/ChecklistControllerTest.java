@@ -42,6 +42,19 @@ class ChecklistControllerTest extends IntegrationTestBase {
         }
 
         @Test
+        @DisplayName("Officer can still view checklist after case moves to PENDING_APPROVAL")
+        void getChecklist_pendingApproval_returns200() throws Exception {
+            var app = seedApplicationWithChecklist(operator);
+            app.setStatus(ApplicationStatus.PENDING_APPROVAL);
+            applicationRepository.save(app);
+
+            mockMvc.perform(get("/api/officer/applications/" + app.getId() + "/checklist")
+                            .header("Authorization", bearerOf(officer)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data", hasSize(2)));
+        }
+
+        @Test
         @DisplayName("Checklist unavailable before site visit is scheduled → 403")
         void getChecklist_beforeSiteVisit_returns403() throws Exception {
             var app = seedApplication(operator, ApplicationStatus.UNDER_REVIEW);
@@ -140,6 +153,29 @@ class ChecklistControllerTest extends IntegrationTestBase {
             var updated = applicationRepository.findById(app.getId()).orElseThrow();
             org.assertj.core.api.Assertions.assertThat(updated.getStatus())
                     .isEqualTo(ApplicationStatus.AWAITING_POST_SITE_CLARIFICATION);
+        }
+
+        @Test
+        @DisplayName("Checklist submit blocked when any item is still PENDING")
+        void submitChecklist_withPendingItems_returns400() throws Exception {
+            var app = seedApplicationWithChecklist(operator);
+            var items = checklistItemRepository.findByApplicationIdOrderBySortOrderAsc(app.getId());
+
+            String payload = """
+                {
+                  "items": [
+                    {"itemId": %d, "status": "PENDING", "officerComment": "Not assessed yet"},
+                    {"itemId": %d, "status": "SATISFACTORY", "officerComment": "OK"}
+                  ]
+                }
+                """.formatted(items.get(0).getId(), items.get(1).getId());
+
+            mockMvc.perform(post("/api/officer/applications/" + app.getId() + "/checklist/submit")
+                            .header("Authorization", bearerOf(officer))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(payload))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message", containsString("Checklist has pending items")));
         }
 
         @Test

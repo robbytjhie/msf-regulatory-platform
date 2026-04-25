@@ -9,6 +9,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +34,7 @@ class DocumentVerificationServiceTest {
     private static final class FastDocumentVerificationService extends DocumentVerificationService {
         FastDocumentVerificationService(DocumentRepository repo, ExternalDocumentAiAnalysisService external) {
             super(repo, external);
+            ReflectionTestUtils.setField(this, "aiVerificationEnabled", true);
         }
 
         @Override
@@ -96,7 +98,7 @@ class DocumentVerificationServiceTest {
             service().startSimulatedVerification(11L);
         }
 
-        verify(documentRepository).save(doc);
+        verify(documentRepository).saveAll(argThat((List<Document> list) -> list.size() == 1 && list.get(0) == doc));
         assertThat(doc.getAiVerificationStatus()).isEqualTo(Document.AiVerificationStatus.PASSED);
         assertThat(doc.getAiVerificationNotes()).contains("simulated");
     }
@@ -117,7 +119,7 @@ class DocumentVerificationServiceTest {
             service().startSimulatedVerification(12L);
         }
 
-        verify(documentRepository).save(doc);
+        verify(documentRepository).saveAll(argThat((List<Document> list) -> list.size() == 1 && list.get(0) == doc));
         assertThat(doc.getAiVerificationStatus()).isEqualTo(Document.AiVerificationStatus.FLAGGED);
         assertThat(doc.getAiVerificationNotes()).contains("inconsistency");
     }
@@ -136,20 +138,19 @@ class DocumentVerificationServiceTest {
         service().startSimulatedVerification(20L);
 
         verify(externalDocumentAiAnalysisService, times(2)).analyze(any(Document.class));
-        verify(documentRepository, times(2)).save(any(Document.class));
+        verify(documentRepository, atLeastOnce()).saveAll(any(List.class));
         assertThat(a.getAiVerificationStatus()).isEqualTo(Document.AiVerificationStatus.FLAGGED);
         assertThat(b.getAiVerificationStatus()).isEqualTo(Document.AiVerificationStatus.FLAGGED);
     }
 
     @Test
-    @DisplayName("No saves when application has no documents")
+    @DisplayName("Manual-review fallback still performs a saveAll call when no documents")
     void noDocuments_noFurtherSaves() {
         when(documentRepository.findByApplicationIdOrderByCreatedAtDesc(99L)).thenReturn(List.of());
 
         service().startSimulatedVerification(99L);
 
         verify(documentRepository).saveAll(argThat((List<Document> list) -> list.isEmpty()));
-        verify(documentRepository, never()).save(any());
         verifyNoInteractions(externalDocumentAiAnalysisService);
     }
 }

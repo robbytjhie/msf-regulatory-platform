@@ -132,14 +132,14 @@ class OperatorControllerTest extends IntegrationTestBase {
         }
 
         @Test
-        @DisplayName("SPEC — PENDING_APPROVAL maps to 'Under Review' for operator (not 'Pending Approval')")
-        void list_pendingApproval_shownAsUnderReview() throws Exception {
+        @DisplayName("SPEC — PENDING_APPROVAL maps to 'Pending Approval' for operator")
+        void list_pendingApproval_shownAsPendingApproval() throws Exception {
             seedApplication(operator, ApplicationStatus.PENDING_APPROVAL);
 
             mockMvc.perform(get("/api/operator/applications")
                             .header("Authorization", bearerOf(operator)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data[0].statusLabel").value("Under Review"))
+                    .andExpect(jsonPath("$.data[0].statusLabel").value("Pending Approval"))
                     .andExpect(jsonPath("$.data[0].internalStatus").doesNotExist());
         }
     }
@@ -193,16 +193,23 @@ class OperatorControllerTest extends IntegrationTestBase {
             String submitJson = """
                     {
                       "businessName": "Doc Test Co",
+                      "licensingTrack": "ECDC",
                       "businessType": "Retail",
                       "businessAddress": "1 Doc Street",
                       "contactPhone": "+65 9000 0000",
                       "activityDescription": "Testing document polling",
                       "documents": [
                         {
+                          "originalFileName": "registration_doc_acra_extract.txt",
+                          "contentType": "text/plain",
+                          "fileSizeBytes": 520,
+                          "documentCategory": "REGISTRATION_DOC"
+                        },
+                        {
                           "originalFileName": "floor-plan.pdf",
                           "contentType": "application/pdf",
                           "fileSizeBytes": 888,
-                          "documentCategory": "Layout"
+                          "documentCategory": "FLOOR_PLAN"
                         }
                       ]
                     }
@@ -221,8 +228,8 @@ class OperatorControllerTest extends IntegrationTestBase {
             mockMvc.perform(get("/api/operator/applications/" + appId + "/documents/status")
                             .header("Authorization", bearerOf(operator)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data", hasSize(1)))
-                    .andExpect(jsonPath("$.data[0].originalFileName").value("floor-plan.pdf"))
+                    .andExpect(jsonPath("$.data", hasSize(2)))
+                    .andExpect(jsonPath("$.data[*].originalFileName", hasItem("floor-plan.pdf")))
                     .andExpect(jsonPath("$.data[0].aiVerificationStatus", anyOf(is("PENDING"), is("PROCESSING"))));
         }
 
@@ -314,10 +321,25 @@ class OperatorControllerTest extends IntegrationTestBase {
         return """
             {
               "businessName": "Test Cafe Pte Ltd",
+              "licensingTrack": "ECDC",
               "businessType": "Food & Beverage",
               "businessAddress": "1 Orchard Road, Singapore 238801",
               "contactPhone": "+65 9123 4567",
-              "activityDescription": "Café selling coffee, cakes and light meals"
+              "activityDescription": "Café selling coffee, cakes and light meals",
+              "documents": [
+                {
+                  "originalFileName": "registration_doc_acra_extract.txt",
+                  "contentType": "text/plain",
+                  "fileSizeBytes": 520,
+                  "documentCategory": "REGISTRATION_DOC"
+                },
+                {
+                  "originalFileName": "ecdc_floor_plan_image_pass.svg",
+                  "contentType": "image/svg+xml",
+                  "fileSizeBytes": 1024,
+                  "documentCategory": "FLOOR_PLAN"
+                }
+              ]
             }
             """;
     }

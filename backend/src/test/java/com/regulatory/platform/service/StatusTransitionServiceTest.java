@@ -100,9 +100,9 @@ class StatusTransitionServiceTest {
     }
 
     @Test
-    @DisplayName("SPEC — PENDING_APPROVAL.getOperatorLabel() returns 'Under Review'")
-    void pendingApproval_operatorLabel_isUnderReview() {
-        assertThat(ApplicationStatus.PENDING_APPROVAL.getOperatorLabel()).isEqualTo("Under Review");
+    @DisplayName("SPEC — PENDING_APPROVAL maps to operator label 'Pending Approval'")
+    void pendingApproval_operatorLabel_isPendingApproval() {
+        assertThat(ApplicationStatus.PENDING_APPROVAL.getOperatorLabel()).isEqualTo("Pending Approval");
     }
 
     @Test

@@ -255,9 +255,29 @@ class OfficerControllerTest extends IntegrationTestBase {
                             .header("Authorization", bearerOf(operator))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
-                                {"businessName":"X","businessType":"Retail",
-                                 "businessAddress":"1 St","activityDescription":"desc"}
-                            """))
+                                {
+                                  "businessName":"X",
+                                  "licensingTrack":"ECDC",
+                                  "businessType":"Retail",
+                                  "businessAddress":"1 St",
+                                  "contactPhone":"+65 9000 0001",
+                                  "activityDescription":"desc",
+                                  "documents":[
+                                    {
+                                      "originalFileName":"registration_doc_acra_extract.txt",
+                                      "contentType":"text/plain",
+                                      "fileSizeBytes":520,
+                                      "documentCategory":"REGISTRATION_DOC"
+                                    },
+                                    {
+                                      "originalFileName":"floor-plan.pdf",
+                                      "contentType":"application/pdf",
+                                      "fileSizeBytes":888,
+                                      "documentCategory":"FLOOR_PLAN"
+                                    }
+                                  ]
+                                }
+                                """))
                     .andExpect(status().isCreated())
                     .andReturn();
 

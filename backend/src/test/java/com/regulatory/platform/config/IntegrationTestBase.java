@@ -6,6 +6,7 @@ import com.regulatory.platform.entity.ChecklistItem;
 import com.regulatory.platform.entity.User;
 import com.regulatory.platform.enums.ApplicationStatus;
 import com.regulatory.platform.enums.ChecklistItemStatus;
+import com.regulatory.platform.enums.LicensingTrack;
 import com.regulatory.platform.enums.UserRole;
 import com.regulatory.platform.repository.*;
 import com.regulatory.platform.security.JwtService;
@@ -89,6 +90,7 @@ public abstract class IntegrationTestBase {
                 .assignedOfficer(officer)
                 .status(status)
                 .businessName("Test Business")
+                .licensingTrack(LicensingTrack.ECDC)
                 .businessType("Retail")
                 .businessAddress("1 Test Street, Singapore 123456")
                 .contactPhone("+65 9999 0000")
