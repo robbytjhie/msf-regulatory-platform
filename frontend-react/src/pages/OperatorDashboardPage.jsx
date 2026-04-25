@@ -48,6 +48,8 @@ export default function OperatorDashboardPage() {
   const end = Math.min(currentPage * pageSize, filtered.length);
 
   const logout = () => {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");

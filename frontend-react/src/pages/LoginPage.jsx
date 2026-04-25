@@ -21,8 +21,12 @@ export default function LoginPage() {
     setError("");
     try {
       const data = await api.login(email, password);
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data));
+      // Use sessionStorage to isolate logins per browser tab/window.
+      sessionStorage.setItem("token", data.token);
+      sessionStorage.setItem("user", JSON.stringify(data));
+      // Clear legacy/shared storage to avoid cross-role leakage.
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
       navigate(data.role === "OFFICER" ? "/officer/dashboard" : "/operator/dashboard");
     } catch (err) {
       setError(err.message || "Sign in failed");

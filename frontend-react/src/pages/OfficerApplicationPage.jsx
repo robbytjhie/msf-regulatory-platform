@@ -87,6 +87,8 @@ export default function OfficerApplicationPage() {
   }, [docPollActive]);
 
   const logout = () => {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");

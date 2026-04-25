@@ -8,8 +8,9 @@ import OfficerApplicationPage from "./pages/OfficerApplicationPage";
 import OfficerChecklistPage from "./pages/OfficerChecklistPage";
 
 function Guard({ role, children }) {
-  const token = localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+  const userRaw = sessionStorage.getItem("user") || localStorage.getItem("user") || "null";
+  const user = JSON.parse(userRaw);
   if (!token || !user) return <Navigate to="/login" replace />;
   if (role && user.role !== role) {
     return <Navigate to={user.role === "OFFICER" ? "/officer/dashboard" : "/operator/dashboard"} replace />;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../apiClient";
 import { TRACK_OPTIONS, requirementsForTrack, requiredCategoriesForTrack } from "../documentRequirements";
@@ -14,45 +14,53 @@ export default function OperatorSubmitPage() {
     activityDescription: "",
   });
   const [documents, setDocuments] = useState([]);
-  const [dragOver, setDragOver] = useState(false);
+  const [dragOverCategory, setDragOverCategory] = useState(null);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const trackRequirements = requirementsForTrack(form.licensingTrack);
-  const requirementByCategory = new Map(trackRequirements.map((r) => [r.category, r]));
+  const trackRequirements = useMemo(() => requirementsForTrack(form.licensingTrack), [form.licensingTrack]);
+  const orderedRequirements = useMemo(
+    () => [...trackRequirements].sort((a, b) => Number(b.required) - Number(a.required)),
+    [trackRequirements],
+  );
+  const requirementByCategory = useMemo(
+    () => new Map(trackRequirements.map((r) => [r.category, r])),
+    [trackRequirements],
+  );
 
   const onChange = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const logout = () => {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
   };
 
-  const toDocumentItem = (file) => ({
+  const toDocumentItem = (file, category) => ({
     id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     fileName: file.name,
     contentType: file.type || "application/octet-stream",
     fileSizeBytes: file.size,
-    documentCategory: trackRequirements[0]?.category || "GENERAL_SUPPORTING",
+    documentCategory: category,
     aiVerificationStatus: "PENDING",
     aiVerificationNotes: "Verification queued on submit",
   });
 
-  const addFiles = (fileList) => {
-    const nextItems = Array.from(fileList || []).map(toDocumentItem);
+  const addFiles = (category, fileList) => {
+    const nextItems = Array.from(fileList || []).map((file) => toDocumentItem(file, category));
     if (!nextItems.length) return;
     setDocuments((prev) => [...prev, ...nextItems]);
   };
 
   const removeDocument = (id) => setDocuments((prev) => prev.filter((d) => d.id !== id));
-  const updateDocumentCategory = (id, category) => {
-    setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, documentCategory: category } : d)));
-  };
-  useEffect(() => {
-    const allowed = new Set(trackRequirements.map((r) => r.category));
-    const fallback = trackRequirements[0]?.category || "GENERAL_SUPPORTING";
-    setDocuments((prev) => prev.map((d) => (allowed.has(d.documentCategory) ? d : { ...d, documentCategory: fallback })));
-  }, [form.licensingTrack]);
+  const documentsByCategory = useMemo(() => {
+    const map = new Map(trackRequirements.map((r) => [r.category, []]));
+    for (const d of documents) {
+      if (map.has(d.documentCategory)) map.get(d.documentCategory).push(d);
+    }
+    return map;
+  }, [documents, trackRequirements]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -105,92 +113,64 @@ export default function OperatorSubmitPage() {
         {ok ? <div className="alert-box success">{ok}</div> : null}
         <form className="button-grid" onSubmit={submit}>
           <input className="field" placeholder="Business Name" value={form.businessName} onChange={(e) => onChange("businessName", e.target.value)} required />
-          <select className="field" value={form.licensingTrack} onChange={(e) => onChange("licensingTrack", e.target.value)} required>
+          <select
+            className="field"
+            value={form.licensingTrack}
+            onChange={(e) => {
+              onChange("licensingTrack", e.target.value);
+              setDocuments([]);
+            }}
+            required
+          >
             {TRACK_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
           <input className="field" placeholder="Business Type" value={form.businessType} onChange={(e) => onChange("businessType", e.target.value)} required />
           <input className="field" placeholder="Business Address" value={form.businessAddress} onChange={(e) => onChange("businessAddress", e.target.value)} required />
           <input className="field" placeholder="Contact Phone" value={form.contactPhone} onChange={(e) => onChange("contactPhone", e.target.value)} />
           <textarea className="field" placeholder="Activity Description" value={form.activityDescription} onChange={(e) => onChange("activityDescription", e.target.value)} required />
-          <div
-            className={`dropzone ${dragOver ? "active" : ""}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              addFiles(e.dataTransfer.files);
-            }}
-          >
-            <p><strong>Document Upload</strong> (Drag and drop files)</p>
-            <div className="workflow-box" style={{ marginTop: 10 }}>
-              <p className="workflow-title">Required supporting evidence</p>
-              <p className="workflow-line">
-                Upload existing evidence documents (license/certificates/plans), not a form template.
-              </p>
-              {trackRequirements.map((r) => (
-                <p key={r.category} className="workflow-line">
-                  <strong>{r.required ? "[Required]" : "[Optional]"} {r.label}</strong> ({r.category}) — Examples: {r.examples}
-                </p>
-              ))}
-            </div>
-            <p className="hint">or use file picker below</p>
-            <input
-              className="field"
-              type="file"
-              multiple
-              onChange={(e) => addFiles(e.target.files)}
-            />
+          <div className="workflow-box" style={{ marginTop: 10 }}>
+            <p className="workflow-title">Supporting Document Upload</p>
+            <p className="workflow-line">Mandatory items are listed first. Upload files into the correct section below.</p>
           </div>
-          {documents.length ? (
-            <table>
-              <thead>
-                <tr>
-                  <th>File</th>
-                  <th>Size (KB)</th>
-                  <th>Category</th>
-                  <th>AI Verification</th>
-                  <th>Notes</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {documents.map((d) => (
-                  <tr key={d.id}>
-                    <td>{d.fileName}</td>
-                    <td>{(d.fileSizeBytes / 1024).toFixed(1)}</td>
-                    <td>
-                      <select
-                        className="field"
-                        value={d.documentCategory}
-                        onChange={(e) => updateDocumentCategory(d.id, e.target.value)}
-                      >
-                        {trackRequirements.map((r) => (
-                          <option key={r.category} value={r.category}>
-                            {r.label} ({r.category})
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <span className={`badge ${d.aiVerificationStatus === "PASSED" ? "badge-green" : d.aiVerificationStatus === "FLAGGED" ? "badge-red" : "badge-amber"}`}>
-                        {d.aiVerificationStatus}
-                      </span>
-                    </td>
-                    <td>{d.aiVerificationNotes}<br /><span className="hint">Rule: {requirementByCategory.get(d.documentCategory)?.aiRule || "General rule"}</span></td>
-                    <td>
-                      <button type="button" className="btn secondary" onClick={() => removeDocument(d.id)}>
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : null}
+          {orderedRequirements.map((r) => (
+            <div
+              key={r.category}
+              className={`dropzone ${dragOverCategory === r.category ? "active" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOverCategory(r.category);
+              }}
+              onDragLeave={() => setDragOverCategory(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverCategory(null);
+                addFiles(r.category, e.dataTransfer.files);
+              }}
+            >
+              <p>
+                <strong>{r.required ? "[Required]" : "[Optional]"} {r.label}</strong> ({r.category})
+              </p>
+              <p className="hint">Examples: {r.examples}</p>
+              <p className="hint">AI rule: {requirementByCategory.get(r.category)?.aiRule}</p>
+              <input className="field" type="file" multiple onChange={(e) => addFiles(r.category, e.target.files)} />
+              {documentsByCategory.get(r.category)?.length ? (
+                <table style={{ marginTop: 10 }}>
+                  <thead><tr><th>File</th><th>Size (KB)</th><th>Action</th></tr></thead>
+                  <tbody>
+                    {documentsByCategory.get(r.category).map((d) => (
+                      <tr key={d.id}>
+                        <td>{d.fileName}</td>
+                        <td>{(d.fileSizeBytes / 1024).toFixed(1)}</td>
+                        <td>
+                          <button type="button" className="btn secondary" onClick={() => removeDocument(d.id)}>Remove</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
+            </div>
+          ))}
           <button className="btn" type="submit" disabled={submitting}>
             {submitting ? "Submitting..." : "Submit Application"}
           </button>
