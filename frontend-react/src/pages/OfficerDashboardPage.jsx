@@ -16,7 +16,21 @@ export default function OfficerDashboardPage() {
   const [gotoPage, setGotoPage] = useState("");
 
   useEffect(() => {
-    api.listOfficerApps().then(setApps).catch(console.error);
+    let active = true;
+    const load = async () => {
+      try {
+        const data = await api.listOfficerApps();
+        if (active) setApps(data);
+      } catch {
+        // Keep current dashboard state when a polling call fails.
+      }
+    };
+    load();
+    const timer = window.setInterval(load, 2000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
   const filtered = useMemo(() => {
