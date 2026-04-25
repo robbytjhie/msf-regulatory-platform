@@ -34,6 +34,7 @@ export default function OfficerChecklistPage() {
       officerComment: i.officerComment || null,
     })),
   });
+  const hasPendingItems = items.some((i) => i.status === "PENDING");
 
   const saveDraft = async () => {
     if (!window.confirm("Save checklist draft?")) return;
@@ -96,11 +97,16 @@ export default function OfficerChecklistPage() {
             ))}
           </tbody>
         </table>
+        {hasPendingItems ? (
+          <p className="hint" style={{ marginTop: 10 }}>
+            Submission is disabled while checklist items are still <code>PENDING</code>.
+          </p>
+        ) : null}
         <div className="top" style={{ marginTop: 12 }}>
           <button className="btn secondary" disabled={savingDraft} onClick={saveDraft}>
             {savingDraft ? "Saving..." : "Save Draft"}
           </button>
-          <button className="btn" disabled={submitting} onClick={submitChecklist}>
+          <button className="btn" disabled={submitting || hasPendingItems} onClick={submitChecklist}>
             {submitting ? "Submitting..." : "Submit Checklist"}
           </button>
         </div>

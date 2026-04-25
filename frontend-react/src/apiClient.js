@@ -13,6 +13,9 @@ function toReadableMessage(rawMessage, statusCode) {
   if (m.includes("Application is not awaiting resubmission")) {
     return "This application is currently not open for resubmission.";
   }
+  if (m.includes("Checklist has pending items")) {
+    return "Checklist submission is blocked. Please update all pending items before submitting.";
+  }
   if (statusCode === 401) return "Your session has expired. Please sign in again.";
   if (statusCode === 403) return "You do not have permission to perform this action.";
   if (statusCode === 404) return "The requested record was not found.";

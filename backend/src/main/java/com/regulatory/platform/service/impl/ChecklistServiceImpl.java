@@ -10,6 +10,7 @@ import com.regulatory.platform.enums.NotificationType;
 import com.regulatory.platform.enums.UserRole;
 import com.regulatory.platform.exception.ApplicationNotFoundException;
 import com.regulatory.platform.exception.ForbiddenOperationException;
+import com.regulatory.platform.exception.InvalidRequestException;
 import com.regulatory.platform.exception.ResourceNotFoundException;
 import com.regulatory.platform.repository.*;
 import com.regulatory.platform.service.ChecklistService;
@@ -40,7 +41,7 @@ public class ChecklistServiceImpl implements ChecklistService {
     @Transactional(readOnly = true)
     public List<ChecklistItemResponse> getFullChecklist(Long applicationId, User officer) {
         Application app = findApplicationOrThrow(applicationId);
-        assertSiteVisitScheduled(app);
+        assertChecklistVisible(app);
         return checklistItemRepository.findByApplicationIdOrderBySortOrderAsc(applicationId)
                 .stream()
                 .peek(item -> Hibernate.initialize(item.getClarificationThreads()))
@@ -62,10 +63,15 @@ public class ChecklistServiceImpl implements ChecklistService {
         assertSiteVisitScheduled(app);
 
         applyChecklistUpdates(applicationId, request, false);
+        List<ChecklistItem> submittedItems = checklistItemRepository.findByApplicationIdOrderBySortOrderAsc(applicationId);
+        boolean hasPendingItems = submittedItems.stream()
+                .anyMatch(i -> i.getStatus() == ChecklistItemStatus.PENDING);
+        if (hasPendingItems) {
+            throw new InvalidRequestException("Checklist has pending items. Please set every item to SATISFACTORY, NEEDS_CLARIFICATION, or RESOLVED before submit.");
+        }
 
-        boolean hasFlaggedItems = !checklistItemRepository
-                .findByApplicationIdAndStatusOrderBySortOrderAsc(applicationId, ChecklistItemStatus.NEEDS_CLARIFICATION)
-                .isEmpty();
+        boolean hasFlaggedItems = submittedItems.stream()
+                .anyMatch(i -> i.getStatus() == ChecklistItemStatus.NEEDS_CLARIFICATION);
 
         ApplicationStatus targetStatus = hasFlaggedItems
                 ? ApplicationStatus.AWAITING_POST_SITE_CLARIFICATION
@@ -192,6 +198,21 @@ public class ChecklistServiceImpl implements ChecklistService {
                 && app.getStatus() != ApplicationStatus.SITE_VISIT_DONE) {
             throw new ForbiddenOperationException(
                     "Checklist is only accessible after site visit is scheduled");
+        }
+    }
+
+    private void assertChecklistVisible(Application app) {
+        ApplicationStatus s = app.getStatus();
+        boolean visible = s == ApplicationStatus.SITE_VISIT_SCHEDULED
+                || s == ApplicationStatus.SITE_VISIT_DONE
+                || s == ApplicationStatus.AWAITING_POST_SITE_CLARIFICATION
+                || s == ApplicationStatus.PENDING_POST_SITE_RESUBMISSION
+                || s == ApplicationStatus.POST_SITE_CLARIFICATION_RESUBMITTED
+                || s == ApplicationStatus.PENDING_APPROVAL
+                || s == ApplicationStatus.APPROVED
+                || s == ApplicationStatus.REJECTED;
+        if (!visible) {
+            throw new ForbiddenOperationException("Checklist is not available at this stage");
         }
     }
 

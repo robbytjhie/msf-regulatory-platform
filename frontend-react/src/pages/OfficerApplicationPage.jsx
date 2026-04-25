@@ -15,8 +15,17 @@ const transitionMap = {
   PENDING_APPROVAL: ["APPROVED", "REJECTED"],
 };
 
-/** Officer can open the site-visit checklist only in these workflow stages (backend enforces the same). */
-const CHECKLIST_AVAILABLE_STATUSES = new Set(["SITE_VISIT_SCHEDULED", "SITE_VISIT_DONE"]);
+/** Officer can open checklist whenever it exists in workflow history. */
+const CHECKLIST_AVAILABLE_STATUSES = new Set([
+  "SITE_VISIT_SCHEDULED",
+  "SITE_VISIT_DONE",
+  "AWAITING_POST_SITE_CLARIFICATION",
+  "PENDING_POST_SITE_RESUBMISSION",
+  "POST_SITE_CLARIFICATION_RESUBMITTED",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED",
+]);
 
 const labelToInternalStatus = {
   "APPLICATION RECEIVED": "APPLICATION_RECEIVED",
