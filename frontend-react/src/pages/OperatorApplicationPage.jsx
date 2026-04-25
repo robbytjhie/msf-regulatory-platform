@@ -9,11 +9,6 @@ function formatTs(value) {
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
 }
 
-function normalizeOfficerReturnReason(text) {
-  if (!text) return "";
-  return String(text).replace(/^\[Document Return Required\]\s*/i, "").trim();
-}
-
 export default function OperatorApplicationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -290,7 +285,7 @@ export default function OperatorApplicationPage() {
                       ? "PENDING_OFFICER_VERIFICATION"
                       : (d.aiVerificationStatus || "PENDING");
                     const displayNotes = officerReturned
-                      ? (normalizeOfficerReturnReason(unresolvedOfficerReasonByDocId.get(d.id)) || "Returned by officer for correction.")
+                      ? (unresolvedOfficerReasonByDocId.get(d.id) || "Returned by officer for correction.")
                       : (d.aiVerificationNotes || "-");
                     return (
                       <>

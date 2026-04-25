@@ -65,6 +65,24 @@ function formatTs(value) {
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
 }
 
+function buildDocumentReturnState(data) {
+  const unresolvedCommentByDocId = new Map();
+  (data?.officerComments || [])
+    .filter((c) => c.targetDocumentId && c.resolved === false)
+    .forEach((c) => unresolvedCommentByDocId.set(c.targetDocumentId, c.commentText || ""));
+
+  const next = {};
+  (data?.documents || []).forEach((doc) => {
+    const unresolvedComment = unresolvedCommentByDocId.get(doc.id) || "";
+    const flaggedByAi = doc.aiVerificationStatus === "FLAGGED" || doc.aiVerificationStatus === "FAILED";
+    next[doc.id] = {
+      checked: Boolean(unresolvedComment) || flaggedByAi,
+      comment: unresolvedComment,
+    };
+  });
+  return next;
+}
+
 export default function OfficerApplicationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -77,15 +95,12 @@ export default function OfficerApplicationPage() {
   const [docPollActive, setDocPollActive] = useState(false);
   const [lastDocPollAt, setLastDocPollAt] = useState(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
-  const [requiredReturnDocIds, setRequiredReturnDocIds] = useState([]);
+  const [documentReturnState, setDocumentReturnState] = useState({});
 
   useEffect(() => {
     api.getOfficerApplication(id).then((d) => {
       setApp(d);
-      const defaultIssueDocIds = (d.documents || [])
-        .filter((doc) => doc.aiVerificationStatus === "FLAGGED" || doc.aiVerificationStatus === "FAILED")
-        .map((doc) => doc.id);
-      setRequiredReturnDocIds(defaultIssueDocIds);
+      setDocumentReturnState(buildDocumentReturnState(d));
       const currentStatus = normalizeInternalStatus(d.internalStatus);
       const allowed = transitionMap[currentStatus] || [];
       setNewStatus(allowed[0] || currentStatus || "UNDER_REVIEW");
@@ -167,14 +182,19 @@ export default function OfficerApplicationPage() {
         targetStatus = fallback;
         setNewStatus(fallback);
       }
-      const documentFixComments = requiredReturnDocIds.map((docId) => {
-        const doc = app.documents?.find((d) => d.id === docId);
-        return {
-          commentText: `[Document Return Required] ${doc?.originalFileName || "Document"} (${doc?.documentCategory || "-"}) requires fixes. Refer to officer notes for reason.`,
-          targetSection: "document",
-          targetDocumentId: docId,
-        };
-      });
+      const selectedReturnDocuments = (app.documents || []).filter((doc) => documentReturnState[doc.id]?.checked);
+      const missingCommentDoc = selectedReturnDocuments.find(
+        (doc) => !String(documentReturnState[doc.id]?.comment || "").trim(),
+      );
+      if (missingCommentDoc) {
+        setErr(`Please provide a comment for "${missingCommentDoc.originalFileName}" or untick return.`);
+        return;
+      }
+      const documentFixComments = selectedReturnDocuments.map((doc) => ({
+        commentText: String(documentReturnState[doc.id]?.comment || "").trim(),
+        targetSection: "document",
+        targetDocumentId: doc.id,
+      }));
       const commentsPayload = [
         ...(comment ? [{ commentText: comment, targetSection: null, targetDocumentId: null }] : []),
         ...documentFixComments,
@@ -186,6 +206,7 @@ export default function OfficerApplicationPage() {
         comments: commentsPayload,
       });
       setApp(updated);
+      setDocumentReturnState(buildDocumentReturnState(updated));
       setComment("");
       setOk("Feedback submitted and status updated.");
     } catch (e) {
@@ -193,14 +214,6 @@ export default function OfficerApplicationPage() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const requireReturn = (doc) => {
-    if (!doc?.id) return;
-    const line = `Document "${doc.originalFileName}" requires fixes. Reason: `;
-    setComment((prev) => (prev?.includes(line) ? prev : (prev ? `${prev}\n${line}` : line)));
-    setRequiredReturnDocIds((prev) => (prev.includes(doc.id) ? prev : [...prev, doc.id]));
-    setOk(`Marked "${doc.originalFileName}" as return required. Add your reason in the comment box.`);
   };
 
   const openStoredDocument = async (documentId) => {
@@ -332,11 +345,10 @@ export default function OfficerApplicationPage() {
               </p>
             </div>
             <table>
-              <thead><tr><th>No.</th><th>File</th><th>Category</th><th>AI status</th><th>Notes (why flagged, etc.)</th><th>Action</th></tr></thead>
+              <thead><tr><th>File</th><th>Category</th><th>AI status</th><th>Notes (why flagged, etc.)</th><th>Comment</th></tr></thead>
               <tbody>
-                {app.documents.map((d, idx) => (
+                {app.documents.map((d) => (
                   <tr key={d.id}>
-                    <td>{idx + 1}</td>
                     <td>
                       <a href="#"
                         onClick={(e) => {
@@ -356,14 +368,40 @@ export default function OfficerApplicationPage() {
                     </td>
                     <td>{d.aiVerificationNotes || "—"}</td>
                     <td>
-                      <button
-                        type="button"
-                        className="btn secondary"
-                        onClick={() => requireReturn(d)}
-                        title="Mark this document as requiring operator fix and add template line"
-                      >
-                        {requiredReturnDocIds.includes(d.id) ? "Return Required" : "Require Return"}
-                      </button>
+                      <label className="hint" style={{ display: "block", marginBottom: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(documentReturnState[d.id]?.checked)}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setDocumentReturnState((prev) => ({
+                              ...prev,
+                              [d.id]: {
+                                checked,
+                                comment: checked ? (prev[d.id]?.comment || "") : "",
+                              },
+                            }));
+                          }}
+                          style={{ marginRight: 6 }}
+                        />
+                        Return document
+                      </label>
+                      <textarea
+                        className="field"
+                        placeholder="Comment for operator (required when return is checked)"
+                        value={documentReturnState[d.id]?.comment || ""}
+                        disabled={!documentReturnState[d.id]?.checked}
+                        onChange={(e) =>
+                          setDocumentReturnState((prev) => ({
+                            ...prev,
+                            [d.id]: {
+                              checked: Boolean(prev[d.id]?.checked),
+                              comment: e.target.value,
+                            },
+                          }))
+                        }
+                        style={{ width: "100%", minHeight: 68 }}
+                      />
                     </td>
                   </tr>
                 ))}
