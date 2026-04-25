@@ -7,7 +7,18 @@ export async function apiRequest(path, options = {}) {
   };
 
   const response = await fetch(path, { ...options, headers });
-  const json = await response.json();
+  const text = await response.text();
+  let json;
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    const hint = text.trim().slice(0, 280) || `HTTP ${response.status}`;
+    throw new Error(
+      hint.includes("CORS")
+        ? `${hint} — allow your browser origin via APP_CORS_ALLOWED_ORIGIN_PATTERNS on the backend (see docs).`
+        : hint
+    );
+  }
   if (!response.ok) {
     throw new Error(json.message || `HTTP ${response.status}`);
   }

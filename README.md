@@ -95,7 +95,7 @@ Tunable security environment variables:
 
 - `APP_LOGIN_RATE_LIMIT_MAX_ATTEMPTS` (default `5`)
 - `APP_LOGIN_RATE_LIMIT_WINDOW_SECONDS` (default `300`)
-- `APP_CORS_ALLOWED_ORIGIN_PATTERNS` (comma-separated allowed origins/patterns)
+- `APP_CORS_ALLOWED_ORIGIN_PATTERNS` (comma-separated Spring `allowedOriginPatterns`; dev defaults include `http://localhost:*`, `http://127.0.0.1:*`, and common private LAN patterns for Minikube / `vite --host` — **set explicit origins in production**)
 
 ---
 
