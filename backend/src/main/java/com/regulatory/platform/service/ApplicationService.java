@@ -1,6 +1,7 @@
 package com.regulatory.platform.service;
 
 import com.regulatory.platform.dto.request.ApplicationSubmitRequest;
+import com.regulatory.platform.dto.request.DocumentReuploadRequest;
 import com.regulatory.platform.dto.request.OfficerFeedbackRequest;
 import com.regulatory.platform.dto.request.ResubmitRequest;
 import com.regulatory.platform.dto.response.ApplicationDetailResponse;
@@ -32,6 +33,12 @@ public interface ApplicationService {
 
     // UC1 — Operator polls per-document AI verification statuses
     List<DocumentResponse> getOperatorDocumentStatuses(Long applicationId, User operator);
+
+    // UC1 — Operator replaces document metadata and triggers AI re-validation
+    DocumentResponse reuploadAndRevalidateDocument(Long applicationId,
+                                                   Long documentId,
+                                                   DocumentReuploadRequest request,
+                                                   User operator);
 
     // UC2 — Officer requests more info / sets status
     ApplicationDetailResponse submitOfficerFeedback(Long applicationId,

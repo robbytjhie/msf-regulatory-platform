@@ -52,6 +52,25 @@ public class DocumentVerificationService {
         }
     }
 
+    @Async
+    @Transactional
+    public void startSimulatedVerificationForDocument(Long documentId) {
+        sleep(700);
+        Document doc = documentRepository.findById(documentId).orElse(null);
+        if (doc == null) return;
+        doc.setAiVerificationStatus(Document.AiVerificationStatus.PROCESSING);
+        doc.setAiVerificationNotes("AI verification in progress...");
+        documentRepository.save(doc);
+
+        sleep(800 + ThreadLocalRandom.current().nextInt(900));
+        externalDocumentAiAnalysisService.analyze(doc).ifPresent(result -> {
+            doc.setAiVerificationStatus(result.status());
+            doc.setAiVerificationNotes(result.notes());
+            documentRepository.save(doc);
+            log.info("Document {} re-validation complete: {}", doc.getId(), doc.getAiVerificationStatus());
+        });
+    }
+
     /** Package-private so tests can override with no-op sleeps. */
     void sleep(long ms) {
         try {

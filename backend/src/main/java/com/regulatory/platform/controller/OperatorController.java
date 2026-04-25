@@ -1,6 +1,7 @@
 package com.regulatory.platform.controller;
 
 import com.regulatory.platform.dto.request.ApplicationSubmitRequest;
+import com.regulatory.platform.dto.request.DocumentReuploadRequest;
 import com.regulatory.platform.dto.request.OperatorClarificationRequest;
 import com.regulatory.platform.dto.request.ResubmitRequest;
 import com.regulatory.platform.dto.response.ApiResponse;
@@ -68,6 +69,18 @@ public class OperatorController {
             @AuthenticationPrincipal UserDetails principal) {
         User operator = resolveUser(principal);
         return ResponseEntity.ok(ApiResponse.ok(applicationService.getOperatorDocumentStatuses(id, operator)));
+    }
+
+    // UC1: Replace one document and trigger AI re-validation
+    @PostMapping("/applications/{id}/documents/{documentId}/reupload-validate")
+    public ResponseEntity<ApiResponse<DocumentResponse>> reuploadAndValidate(
+            @PathVariable Long id,
+            @PathVariable Long documentId,
+            @Valid @RequestBody DocumentReuploadRequest request,
+            @AuthenticationPrincipal UserDetails principal) {
+        User operator = resolveUser(principal);
+        DocumentResponse response = applicationService.reuploadAndRevalidateDocument(id, documentId, request, operator);
+        return ResponseEntity.ok(ApiResponse.ok("Document re-uploaded. Validation started.", response));
     }
 
     // UC1: Resubmit — only changed fields required

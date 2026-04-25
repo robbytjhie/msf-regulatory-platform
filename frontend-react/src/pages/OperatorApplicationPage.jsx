@@ -22,6 +22,8 @@ export default function OperatorApplicationPage() {
   const [docPollActive, setDocPollActive] = useState(false);
   const [lastDocPollAt, setLastDocPollAt] = useState(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [replacementFiles, setReplacementFiles] = useState({});
+  const [validatingDocId, setValidatingDocId] = useState(null);
 
   useEffect(() => {
     api.getOperatorApplication(id).then((data) => {
@@ -97,6 +99,32 @@ export default function OperatorApplicationPage() {
     }
   };
 
+  const reuploadAndValidate = async (doc) => {
+    const file = replacementFiles[doc.id];
+    if (!file) {
+      setErr("Please choose a replacement file before validation.");
+      return;
+    }
+    try {
+      setValidatingDocId(doc.id);
+      setErr("");
+      setOk("");
+      await api.reuploadOperatorDocument(id, doc.id, {
+        originalFileName: file.name,
+        contentType: file.type || "application/octet-stream",
+        fileSizeBytes: file.size,
+      });
+      const fresh = await api.getOperatorApplication(id);
+      setApp(fresh);
+      setOk(`Re-uploaded ${file.name}. AI validation started automatically.`);
+      setDocPollActive(true);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setValidatingDocId(null);
+    }
+  };
+
   const respond = async (itemId) => {
     const message = window.prompt("Enter response");
     if (!message) return;
@@ -126,6 +154,8 @@ export default function OperatorApplicationPage() {
   const issueDocuments = (app.documents || []).filter(
     (d) => unresolvedIssueDocIds.has(d.id) || d.aiVerificationStatus === "FLAGGED" || d.aiVerificationStatus === "FAILED",
   );
+  const allIssueDocsValidated = issueDocuments.every((d) => d.aiVerificationStatus === "PASSED");
+  const canSubmitResubmission = canResubmit && allIssueDocsValidated;
 
   return (
     <main className="app-shell">
@@ -201,7 +231,7 @@ export default function OperatorApplicationPage() {
         <h4>Documents Requiring Fix</h4>
         {issueDocuments.length ? (
           <table>
-            <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th></tr></thead>
+            <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th><th>Replace File</th><th>Validate</th></tr></thead>
             <tbody>
               {issueDocuments.map((d) => (
                 <tr key={`issue-${d.id}`}>
@@ -213,6 +243,23 @@ export default function OperatorApplicationPage() {
                     </span>
                   </td>
                   <td>{d.aiVerificationNotes || "-"}</td>
+                  <td>
+                    <input
+                      className="field"
+                      type="file"
+                      onChange={(e) => setReplacementFiles((prev) => ({ ...prev, [d.id]: e.target.files?.[0] || null }))}
+                    />
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      disabled={validatingDocId === d.id}
+                      onClick={() => reuploadAndValidate(d)}
+                    >
+                      {validatingDocId === d.id ? "Validating..." : "Re-upload & Validate"}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -225,10 +272,15 @@ export default function OperatorApplicationPage() {
           <input className="field" value={resubmit.businessAddress} placeholder="Business Address (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessAddress: e.target.value }))} />
           <input className="field" value={resubmit.contactPhone} placeholder="Contact Phone (optional)" onChange={(e) => setResubmit((r) => ({ ...r, contactPhone: e.target.value }))} />
           <textarea className="field" value={resubmit.activityDescription} placeholder="Activity Description (optional)" onChange={(e) => setResubmit((r) => ({ ...r, activityDescription: e.target.value }))} />
-          <button className="btn" disabled={!canResubmit || submitting} onClick={submitResubmit}>
+          <button className="btn" disabled={!canSubmitResubmission || submitting} onClick={submitResubmit}>
             {submitting ? "Submitting..." : "Submit Resubmission"}
           </button>
         </div>
+        {!allIssueDocsValidated && issueDocuments.length ? (
+          <p className="hint">
+            Submit is disabled until all issue documents are re-uploaded and validated as PASSED.
+          </p>
+        ) : null}
         {flagged.length ? (
           <>
             <h4>Flagged Checklist Items</h4>

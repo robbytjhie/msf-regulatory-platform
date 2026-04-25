@@ -234,7 +234,7 @@ export default function OperatorSubmitPage() {
             </div>
           ))}
           <button className="btn" type="submit" disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit Application"}
+            {submitting ? "Validating..." : "Validate & Submit Application"}
           </button>
         </form>
       </section>

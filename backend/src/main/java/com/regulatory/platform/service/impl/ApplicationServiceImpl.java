@@ -1,6 +1,7 @@
 package com.regulatory.platform.service.impl;
 
 import com.regulatory.platform.dto.request.ApplicationSubmitRequest;
+import com.regulatory.platform.dto.request.DocumentReuploadRequest;
 import com.regulatory.platform.dto.request.OfficerFeedbackRequest;
 import com.regulatory.platform.dto.request.ResubmitRequest;
 import com.regulatory.platform.dto.response.ApplicationDetailResponse;
@@ -42,6 +43,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final ApplicationRepository applicationRepository;
     private final StatusHistoryRepository statusHistoryRepository;
     private final OfficerCommentRepository officerCommentRepository;
+    private final DocumentRepository documentRepository;
     private final StatusTransitionService statusTransitionService;
     private final NotificationService notificationService;
     private final DocumentVerificationService documentVerificationService;
@@ -193,6 +195,33 @@ public class ApplicationServiceImpl implements ApplicationService {
         return application.getDocuments().stream()
                 .map(DocumentResponse::from)
                 .toList();
+    }
+
+    @Override
+    public DocumentResponse reuploadAndRevalidateDocument(Long applicationId,
+                                                          Long documentId,
+                                                          DocumentReuploadRequest request,
+                                                          User operator) {
+        Application application = findWithUsersOrThrow(applicationId);
+        assertOperatorOwns(application, operator);
+        Hibernate.initialize(application.getDocuments());
+        Document doc = application.getDocuments().stream()
+                .filter(d -> d.getId().equals(documentId))
+                .findFirst()
+                .orElseThrow(() -> new InvalidRequestException("Document not found for this application: " + documentId));
+
+        doc.setOriginalFileName(request.originalFileName());
+        doc.setStoredFileName("simulated-" + UUID.randomUUID());
+        doc.setContentType(request.contentType() != null && !request.contentType().isBlank()
+                ? request.contentType()
+                : "application/octet-stream");
+        doc.setFileSizeBytes(request.fileSizeBytes());
+        doc.setSubmissionRound(application.getSubmissionRound());
+        doc.setAiVerificationStatus(Document.AiVerificationStatus.PENDING);
+        doc.setAiVerificationNotes("Re-upload received. Verification queued.");
+        documentRepository.save(doc);
+        documentVerificationService.startSimulatedVerificationForDocument(doc.getId());
+        return DocumentResponse.from(doc);
     }
 
     @Override
