@@ -20,9 +20,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpHeaders;
+import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
@@ -37,6 +38,9 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     @Value("${app.security.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*,http://192.168.*:*,http://10.*:*}")
     private String allowedOriginPatterns;
+
+    @Value("${app.security.cors.relax-private-network-origins:true}")
+    private boolean relaxPrivateNetworkOrigins;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -77,21 +81,57 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        // Restrict CORS by environment via property.
-        config.setAllowedOriginPatterns(Arrays.stream(allowedOriginPatterns.split(","))
+        List<String> patterns = Arrays.stream(allowedOriginPatterns.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isBlank())
-                .toList());
+                .toList();
+
+        CorsConfiguration patternProbe = new CorsConfiguration();
+        patternProbe.setAllowedOriginPatterns(patterns);
+        patternProbe.setAllowCredentials(true);
+
+        return request -> {
+            String origin = request.getHeader(HttpHeaders.ORIGIN);
+            if (!StringUtils.hasText(origin)) {
+                return baseCorsWithPatterns(patterns);
+            }
+            String resolvedOrigin = patternProbe.checkOrigin(origin);
+            if (resolvedOrigin == null && relaxPrivateNetworkOrigins && isPrivateNetworkDevOrigin(origin)) {
+                resolvedOrigin = origin;
+            }
+            if (resolvedOrigin == null) {
+                return null;
+            }
+            CorsConfiguration config = baseCorsWithPatterns(List.of());
+            config.setAllowedOrigins(List.of(resolvedOrigin));
+            config.setAllowedOriginPatterns(List.of());
+            return config;
+        };
+    }
+
+    /**
+     * Host prefixes where we echo Origin when Spring pattern matching fails (e.g. some
+     * {@code http://127.0.0.1:&lt;random port&gt;} Minikube tunnel URLs).
+     */
+    private static boolean isPrivateNetworkDevOrigin(String origin) {
+        return origin.startsWith("http://127.0.0.1:")
+                || origin.startsWith("http://localhost:")
+                || origin.startsWith("http://192.168.")
+                || origin.startsWith("http://10.")
+                || origin.startsWith("http://[::1]:");
+    }
+
+    private static CorsConfiguration baseCorsWithPatterns(List<String> patterns) {
+        CorsConfiguration config = new CorsConfiguration();
+        if (!patterns.isEmpty()) {
+            config.setAllowedOriginPatterns(patterns);
+        }
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
+        return config;
     }
 
     @Bean
