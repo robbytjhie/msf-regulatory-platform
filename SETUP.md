@@ -48,6 +48,7 @@ Open: **http://localhost:5173/login**
   - `OFFICER`
   - `OPERATOR`
   - `ADMIN`
+- Login endpoint has rate limiting (configurable by env vars)
 
 Demo accounts:
 
@@ -56,6 +57,27 @@ Demo accounts:
 | Officer  | officer@gov.sg        | password   |
 | Operator | operator@acme.sg      | password   |
 | Operator | operator2@beta.sg     | password   |
+
+---
+
+## Security Environment Variables (Optional)
+
+You can override defaults via environment variables before starting backend:
+
+- `APP_CORS_ALLOWED_ORIGIN_PATTERNS`  
+  Example: `https://your-frontend.gov.sg,https://staging.example.sg`
+- `APP_LOGIN_RATE_LIMIT_MAX_ATTEMPTS`  
+  Example: `5`
+- `APP_LOGIN_RATE_LIMIT_WINDOW_SECONDS`  
+  Example: `300`
+
+PowerShell example:
+
+```powershell
+$env:APP_CORS_ALLOWED_ORIGIN_PATTERNS="http://localhost:5173,http://127.0.0.1:5173"
+$env:APP_LOGIN_RATE_LIMIT_MAX_ATTEMPTS="5"
+$env:APP_LOGIN_RATE_LIMIT_WINDOW_SECONDS="300"
+```
 
 ---
 
