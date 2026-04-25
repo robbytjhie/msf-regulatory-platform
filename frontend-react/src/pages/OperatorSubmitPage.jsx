@@ -3,23 +3,31 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../apiClient";
 import { TRACK_OPTIONS, requirementsForTrack, requiredCategoriesForTrack } from "../documentRequirements";
 
-const BUSINESS_TYPE_OPTIONS = [
-  "Early Childhood Development Centre (ECDC)",
-  "Student Care Centre (SCFA)",
-  "Home for the Aged (HFAA)",
-  "Childminding Pilot Service",
-  "Children's Home",
-  "Adult Disability Home",
-  "Welfare Home",
-  "Family Service Centre",
-  "Other MSF-Regulated Service",
-];
+const BUSINESS_TYPES_BY_TRACK = {
+  ECDC: [
+    "Early Childhood Development Centre (ECDC)",
+    "Preschool (Infant/Nursery/Kindergarten)",
+    "Child Care Centre",
+  ],
+  SCFA: [
+    "Student Care Centre (SCFA)",
+    "Student Care + Enrichment Centre",
+  ],
+  HFAA: [
+    "Home for the Aged (HFAA)",
+    "Sheltered Home for Elderly",
+  ],
+  CHILDMINDING: [
+    "Childminding Pilot Service",
+    "Home-based Infant Care Service",
+  ],
+};
 
 export default function OperatorSubmitPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     businessName: "",
-    licensingTrack: "ECDC",
+    licensingTrack: "",
     businessType: "",
     businessAddress: "",
     contactPhone: "",
@@ -31,6 +39,10 @@ export default function OperatorSubmitPage() {
   const [ok, setOk] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const trackRequirements = useMemo(() => requirementsForTrack(form.licensingTrack), [form.licensingTrack]);
+  const businessTypeOptions = useMemo(
+    () => (form.licensingTrack ? (BUSINESS_TYPES_BY_TRACK[form.licensingTrack] || []) : []),
+    [form.licensingTrack],
+  );
   const orderedRequirements = useMemo(
     () => [...trackRequirements].sort((a, b) => Number(b.required) - Number(a.required)),
     [trackRequirements],
@@ -125,25 +137,34 @@ export default function OperatorSubmitPage() {
         {ok ? <div className="alert-box success">{ok}</div> : null}
         <form className="button-grid" onSubmit={submit}>
           <input className="field" placeholder="Business Name" value={form.businessName} onChange={(e) => onChange("businessName", e.target.value)} required />
+          <label className="hint" htmlFor="licensing-track">Licensing track (required)</label>
           <select
+            id="licensing-track"
             className="field"
             value={form.licensingTrack}
             onChange={(e) => {
               onChange("licensingTrack", e.target.value);
+              onChange("businessType", "");
               setDocuments([]);
             }}
             required
           >
+            <option value="">Select Licensing Track</option>
             {TRACK_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
+          <label className="hint" htmlFor="business-type">Business type (required)</label>
           <select
+            id="business-type"
             className="field"
             value={form.businessType}
             onChange={(e) => onChange("businessType", e.target.value)}
+            disabled={!form.licensingTrack}
             required
           >
-            <option value="">Select Business Type (MSF)</option>
-            {BUSINESS_TYPE_OPTIONS.map((option) => (
+            <option value="">
+              {form.licensingTrack ? "Select Business Type (MSF)" : "Select Licensing Track first"}
+            </option>
+            {businessTypeOptions.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
