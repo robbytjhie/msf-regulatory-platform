@@ -11,6 +11,7 @@ const transitionMap = {
   SITE_VISIT_SCHEDULED: ["SITE_VISIT_DONE", "AWAITING_POST_SITE_CLARIFICATION", "PENDING_APPROVAL"],
   SITE_VISIT_DONE: ["AWAITING_POST_SITE_CLARIFICATION", "PENDING_APPROVAL"],
   AWAITING_POST_SITE_CLARIFICATION: ["PENDING_POST_SITE_RESUBMISSION"],
+  PENDING_POST_SITE_CLARIFICATION: ["PENDING_POST_SITE_RESUBMISSION"],
   POST_SITE_CLARIFICATION_RESUBMITTED: ["AWAITING_POST_SITE_CLARIFICATION", "PENDING_APPROVAL"],
   PENDING_APPROVAL: ["APPROVED", "REJECTED"],
 };
@@ -27,6 +28,18 @@ const CHECKLIST_AVAILABLE_STATUSES = new Set([
   "REJECTED",
 ]);
 
+const DOCUMENT_RETURN_DISABLED_STATUSES = new Set([
+  "SITE_VISIT_SCHEDULED",
+  "SITE_VISIT_DONE",
+  "AWAITING_POST_SITE_CLARIFICATION",
+  "PENDING_POST_SITE_CLARIFICATION",
+  "PENDING_POST_SITE_RESUBMISSION",
+  "POST_SITE_CLARIFICATION_RESUBMITTED",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED",
+]);
+
 const labelToInternalStatus = {
   "APPLICATION RECEIVED": "APPLICATION_RECEIVED",
   "MANUAL OFFICER VALIDATION": "MANUAL_OFFICER_VALIDATION",
@@ -36,6 +49,7 @@ const labelToInternalStatus = {
   "SITE VISIT SCHEDULED": "SITE_VISIT_SCHEDULED",
   "SITE VISIT DONE": "SITE_VISIT_DONE",
   "AWAITING POST-SITE CLARIFICATION": "AWAITING_POST_SITE_CLARIFICATION",
+  "PENDING POST-SITE CLARIFICATION": "AWAITING_POST_SITE_CLARIFICATION",
   "PENDING POST-SITE RESUBMISSION": "PENDING_POST_SITE_RESUBMISSION",
   "POST-SITE CLARIFICATION RESUBMITTED": "POST_SITE_CLARIFICATION_RESUBMITTED",
   "PENDING APPROVAL": "PENDING_APPROVAL",
@@ -182,7 +196,9 @@ export default function OfficerApplicationPage() {
         targetStatus = fallback;
         setNewStatus(fallback);
       }
-      const selectedReturnDocuments = (app.documents || []).filter((doc) => documentReturnState[doc.id]?.checked);
+      const selectedReturnDocuments = canReturnDocuments
+        ? (app.documents || []).filter((doc) => documentReturnState[doc.id]?.checked)
+        : [];
       const missingCommentDoc = selectedReturnDocuments.find(
         (doc) => !String(documentReturnState[doc.id]?.comment || "").trim(),
       );
@@ -238,6 +254,7 @@ export default function OfficerApplicationPage() {
   const currentStatus = normalizeInternalStatus(app.internalStatus);
   const allowedTransitions = transitionMap[currentStatus] || [];
   const checklistEnabled = CHECKLIST_AVAILABLE_STATUSES.has(currentStatus);
+  const canReturnDocuments = !DOCUMENT_RETURN_DISABLED_STATUSES.has(currentStatus);
 
   return (
     <main className="app-shell">
@@ -372,6 +389,7 @@ export default function OfficerApplicationPage() {
                         <input
                           type="checkbox"
                           checked={Boolean(documentReturnState[d.id]?.checked)}
+                          disabled={!canReturnDocuments}
                           onChange={(e) => {
                             const checked = e.target.checked;
                             setDocumentReturnState((prev) => ({
@@ -388,9 +406,13 @@ export default function OfficerApplicationPage() {
                       </label>
                       <textarea
                         className="field"
-                        placeholder="Comment for operator (required when return is checked)"
+                        placeholder={
+                          canReturnDocuments
+                            ? "Comment for operator (required when return is checked)"
+                            : "Document return is locked after site-review stages"
+                        }
                         value={documentReturnState[d.id]?.comment || ""}
-                        disabled={!documentReturnState[d.id]?.checked}
+                        disabled={!canReturnDocuments || !documentReturnState[d.id]?.checked}
                         onChange={(e) =>
                           setDocumentReturnState((prev) => ({
                             ...prev,
@@ -402,6 +424,11 @@ export default function OfficerApplicationPage() {
                         }
                         style={{ width: "100%", minHeight: 68 }}
                       />
+                      {!canReturnDocuments ? (
+                        <p className="hint" style={{ marginTop: 6 }}>
+                          Document return is disabled from site-visit stages onward.
+                        </p>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
