@@ -321,17 +321,26 @@ cd backend
 ./mvnw test
 ```
 
-Current test: `StatusTransitionServiceTest` — covers legal/illegal transitions and
-role-gating rules. This is the most critical business logic unit to test.
+Frontend unit tests:
+
+```bash
+cd frontend-react
+npm test
+```
+
+Backend includes unit and integration coverage for status transitions, controller auth,
+notification flows (including SSE stream auth), data seeding controls, and regression
+paths for round-snapshot cleanup.
 
 ---
 
 ## AI Usage
 
 ### Tools Used
-- **Cursor AI assistants** (Claude and Codex models across implementation iterations)
+- **Cursor AI assistants** (Claude + Codex) for implementation acceleration
+- **Cursor terminal assistance** for test loops, CI failure triage, and log/debug command drafting
 
-### How Claude Was Used
+### How AI Was Used
 
 **Prompting approach:**
 
@@ -354,6 +363,12 @@ Example prompts used:
 > items with status `NEEDS_CLARIFICATION`, using the `flaggedOnly()` DTO factory. The
 > full checklist is officer-only. Include the draft-save endpoint."
 
+> "Add SSE for live notification updates on dashboard/detail pages with fallback polling
+> every 2 seconds when EventSource fails or disconnects."
+
+> "Generate regression tests for NotificationController stream token handling and split
+> controller unit tests from API integration tests."
+
 **Validation and corrections:**
 
 - The initial `StatusTransitionService` Claude generated used `EnumSet` and allowed
@@ -366,6 +381,10 @@ Example prompts used:
   I updated it to the Spring Boot 3 lambda DSL pattern.
 - The `DataSeeder` initially used `@PostConstruct` — changed to `CommandLineRunner` to
   ensure JPA is fully initialised before seed runs.
+- AI-generated polling logic initially caused stale state in one operator view; corrected
+  by adding explicit hydration and no-cache API requests.
+- AI-suggested cleanup order missed the new `application_round_snapshots` FK dependency;
+  fixed by deleting snapshots before applications and adding regression tests.
 
 **Where Claude was less helpful:**
 
@@ -373,6 +392,8 @@ Example prompts used:
   did not match the government-utility aesthetic intended.
 - Claude initially placed business logic in controllers. I refactored all non-trivial
   logic into the service layer.
+- Some generated docs drifted from real implementation state after rapid iterations; I
+  manually reconciled README/SCOPE to reflect actual behavior.
 
 **Honest assessment:**
 
@@ -383,11 +404,30 @@ treated as a first draft that needed validation, not a finished product.
 
 ---
 
+## Submission Constraints & Decisions
+
+- **Time limit:** 3-day MVP scope, prioritizing end-to-end officer/operator workflows and testable core behavior over production hardening.
+- **Stack:** Spring Boot + React chosen for fast delivery, strong test tooling, and clear separation of backend state-machine logic from frontend workflow UX.
+- **MVP trade-offs:** Built full UC flow with role isolation, checklist ownership model, AI advisory checks, live updates (SSE with polling fallback), and local placeholder file handling; deferred production-grade storage/OCR/admin concerns.
+- **Deliverables:** Repository contains working codebase, `README.md`, `SCOPE.md`, and implementation-focused technical docs under backend/frontend folders.
+
+---
+
+## Pre-Submission Checklist
+
+- Working codebase run steps documented and validated in this README.
+- `SCOPE.md` included and updated with built vs deferred scope and rationale.
+- AI Usage section included with tools, sample prompts, validation/correction process, and discarded/unhelpful outputs.
+- Error handling and input validation implemented on key paths (invalid transitions, checklist submission guards, role isolation, request validation, global exception mapping).
+- No hardcoded runtime secrets committed; sensitive values are environment-driven (`APP_*`, `GROQ_API_KEY`, `HF_API_TOKEN`), and defaults are for local demo only.
+- "What I would do next" is documented in both README (`Known Gaps`) and `SCOPE.md`.
+
+---
+
 ## Known Gaps
 
-- No actual file persistence (upload API returns 200 but files are not stored)
-- No email notifications (logged server-side only)
+- No full multipart binary file ingestion pipeline yet (current local file flow writes/serves placeholder content for demoability)
+- AI verification remains metadata-based (filename/type/size/category) without OCR/content extraction
 - No pagination on list endpoints
 - No admin UI for user provisioning
-- No real binary file storage/download endpoint yet (current file open uses simulated preview content)
-- AI verification uses metadata only (filename/type/size/category), not full document content OCR/parsing
+- No production-grade identity lifecycle features (self-registration, reset, MFA)

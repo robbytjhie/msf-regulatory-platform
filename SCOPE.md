@@ -34,13 +34,13 @@ end-to-end lifecycle without over-engineering secondary concerns.
 
 | Feature | Decision | Rationale |
 |---|---|---|
-| Email notifications | Stubbed — log message on status change | Requires SMTP/SES config; behaviour is clear from the code. Wire `JavaMailSender` in 1–2 hours |
-| File storage | In-memory only; no actual file persistence | Real work requires S3/GCS config. The upload API endpoint exists; storage is the only missing piece |
+| Email notifications | Implemented via `JavaMailSender` with env-driven SMTP and hardcoded demo recipients | Meets MVP notification requirement; production rollout should switch to configurable recipient routing + template service |
+| File storage | Local placeholder document storage for demo downloads | Enables officer download/open flow without external object store; production should migrate to multipart binary upload + S3/GCS |
 | AI document verification | Metadata-based backend verification (external AI optional + deterministic heuristic fallback) | No binary/OCR extraction yet; current checks rely on filename/type/size/category metadata |
 | Pagination | Not implemented on list endpoints | MVP scale; add `Pageable` to repository queries when needed |
 | Admin portal | No admin-specific UI | Not in the three use cases; `UserRole.ADMIN` exists in the enum |
 | Password reset / registration | No self-serve registration | Officers and operators are provisioned by an admin; demo users seeded via `DataSeeder` |
-| Real-time notifications | No WebSocket/SSE push | Operator detail uses polling for near real-time updates; full event push can be added later |
+| Real-time notifications | Implemented with SSE + automatic 2s polling fallback | Covers live UX in unstable/local environments; can be hardened with reconnect backoff and brokered events later |
 | Operator multi-user (org accounts) | Single user per organisation | Spec is silent on this; `organisationName` field exists for future use |
 
 ---
@@ -66,8 +66,9 @@ end-to-end lifecycle without over-engineering secondary concerns.
    created (presumably templated per licence type). The `DataSeeder` inserts a realistic
    5-item checklist for the demo application.
 
-6. **"Automatic operator notification"** (UC2) is interpreted as in-app state visibility
-   plus logged notification records. Email/push delivery is deferred.
+6. **"Automatic operator notification"** (UC2) is implemented as in-app notifications
+   with SSE live push and external email attempts. If SMTP fails, in-app notification
+   persistence still succeeds (non-blocking fallback).
 
 7. **AI fallback state is an explicit extension.** `MANUAL_OFFICER_VALIDATION` was added
    to support business continuity when AI verification is unavailable.
@@ -85,20 +86,19 @@ for officer/operator workflows. The design system keeps the same government-util
 visual language (status badges, cards, workflow cues), with improved interaction states
 (loading, confirmation, pagination, and explicit pending-action labels).
 
-**Testing:** Unit tests on `StatusTransitionService` (the most critical business logic).
-Integration tests with MockMvc would be the next priority.
+**Testing:** Unit + integration tests across status transitions, auth/role isolation,
+officer/operator controller paths, notification stream auth, seeding controls, and
+coverage-sensitive regression paths.
 
 ---
 
 ## What I Would Do Next
 
-1. **Multipart document upload endpoint** — `POST /api/operator/applications/{id}/documents`
-   with S3/local storage
-2. **Email notifications** — Spring Mail triggered in service layer on status transitions
-3. **Integration tests** — MockMvc for all controller endpoints, especially the
-   role-isolation paths (operator cannot see officer internals)
-4. **Pagination + sorting** on list endpoints
-5. **Officer assignment** — allow assigning applications to specific officers from
-   an admin view
-6. **Real-time updates** — Server-Sent Events for operator dashboard to update when
-   officer submits feedback
+1. **True multipart binary upload/download** — replace placeholder local files with
+   secure binary persistence and content scanning.
+2. **Template-driven notification service** — externalize email templates/recipients and
+   add delivery telemetry + retry policy.
+3. **Pagination + sorting** on list endpoints for production-scale datasets.
+4. **Admin operations** — officer assignment UI + user lifecycle management.
+5. **Advanced AI validation** — OCR/content extraction and policy rule explainability.
+6. **Observability hardening** — metrics dashboards, alerting, and distributed tracing.
