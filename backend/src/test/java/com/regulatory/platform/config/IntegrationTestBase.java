@@ -42,6 +42,7 @@ public abstract class IntegrationTestBase {
     @Autowired protected UserRepository userRepository;
     @Autowired protected ApplicationRepository applicationRepository;
     @Autowired protected ChecklistItemRepository checklistItemRepository;
+    @Autowired protected ApplicationRoundSnapshotRepository applicationRoundSnapshotRepository;
     @Autowired protected StatusHistoryRepository statusHistoryRepository;
     @Autowired protected OfficerCommentRepository officerCommentRepository;
     @Autowired protected JwtService jwtService;
@@ -56,6 +57,7 @@ public abstract class IntegrationTestBase {
         officerCommentRepository.deleteAll();
         statusHistoryRepository.deleteAll();
         checklistItemRepository.deleteAll();
+        applicationRoundSnapshotRepository.deleteAll();
         applicationRepository.deleteAll();
         userRepository.deleteAll();
 

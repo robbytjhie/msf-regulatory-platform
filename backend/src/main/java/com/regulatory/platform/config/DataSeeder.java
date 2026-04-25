@@ -8,6 +8,7 @@ import com.regulatory.platform.enums.LicensingTrack;
 import com.regulatory.platform.enums.UserRole;
 import com.regulatory.platform.repository.ApiAuditLogRepository;
 import com.regulatory.platform.repository.ApplicationRepository;
+import com.regulatory.platform.repository.ApplicationRoundSnapshotRepository;
 import com.regulatory.platform.repository.ChecklistItemRepository;
 import com.regulatory.platform.repository.ClarificationThreadRepository;
 import com.regulatory.platform.repository.DocumentRepository;
@@ -39,6 +40,7 @@ public class DataSeeder {
             NotificationRepository notificationRepository,
             ApplicationRepository applicationRepository,
             DocumentRepository documentRepository,
+            ApplicationRoundSnapshotRepository applicationRoundSnapshotRepository,
             OfficerCommentRepository officerCommentRepository,
             StatusHistoryRepository statusHistoryRepository,
             ChecklistItemRepository checklistItemRepository,
@@ -55,6 +57,7 @@ public class DataSeeder {
                 checklistItemRepository.deleteAllInBatch();
                 officerCommentRepository.deleteAllInBatch();
                 documentRepository.deleteAllInBatch();
+                applicationRoundSnapshotRepository.deleteAllInBatch();
                 statusHistoryRepository.deleteAllInBatch();
                 notificationRepository.deleteAllInBatch();
                 applicationRepository.deleteAllInBatch();

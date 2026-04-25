@@ -5,6 +5,7 @@ import com.regulatory.platform.entity.StatusHistory;
 import com.regulatory.platform.entity.User;
 import com.regulatory.platform.repository.ApiAuditLogRepository;
 import com.regulatory.platform.repository.ApplicationRepository;
+import com.regulatory.platform.repository.ApplicationRoundSnapshotRepository;
 import com.regulatory.platform.repository.ChecklistItemRepository;
 import com.regulatory.platform.repository.ClarificationThreadRepository;
 import com.regulatory.platform.repository.DocumentRepository;
@@ -36,6 +37,7 @@ class DataSeederTest {
     @Mock private NotificationRepository notificationRepository;
     @Mock private ApplicationRepository applicationRepository;
     @Mock private DocumentRepository documentRepository;
+    @Mock private ApplicationRoundSnapshotRepository applicationRoundSnapshotRepository;
     @Mock private OfficerCommentRepository officerCommentRepository;
     @Mock private StatusHistoryRepository statusHistoryRepository;
     @Mock private ChecklistItemRepository checklistItemRepository;
@@ -60,6 +62,7 @@ class DataSeederTest {
                 notificationRepository,
                 applicationRepository,
                 documentRepository,
+                applicationRoundSnapshotRepository,
                 officerCommentRepository,
                 statusHistoryRepository,
                 checklistItemRepository,
@@ -83,6 +86,7 @@ class DataSeederTest {
                 notificationRepository,
                 applicationRepository,
                 documentRepository,
+                applicationRoundSnapshotRepository,
                 officerCommentRepository,
                 statusHistoryRepository,
                 checklistItemRepository,
@@ -111,6 +115,7 @@ class DataSeederTest {
                 notificationRepository,
                 applicationRepository,
                 documentRepository,
+                applicationRoundSnapshotRepository,
                 officerCommentRepository,
                 statusHistoryRepository,
                 checklistItemRepository,
@@ -121,6 +126,7 @@ class DataSeederTest {
 
         verify(userRepository, times(1)).deleteAllInBatch();
         verify(applicationRepository, times(1)).deleteAllInBatch();
+        verify(applicationRoundSnapshotRepository, times(1)).deleteAllInBatch();
         verify(userRepository, times(3)).save(any(User.class));
         verify(applicationRepository, times(4)).save(any(Application.class));
     }
