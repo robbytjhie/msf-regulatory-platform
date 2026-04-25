@@ -84,7 +84,7 @@ export default function OperatorSubmitPage() {
     fileSizeBytes: file.size,
     documentCategory: category,
     aiVerificationStatus: "PENDING",
-    aiVerificationNotes: "Verification queued on submit",
+    aiVerificationNotes: "Validation queued",
   });
 
   const addFiles = (category, fileList) => {
@@ -104,14 +104,14 @@ export default function OperatorSubmitPage() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!window.confirm("Submit this application now?")) return;
+    if (!window.confirm("Confirm validation for this application?")) return;
     setErr("");
     setOk("");
     setSubmitting(true);
     const submittedCategories = new Set(documents.map((d) => d.documentCategory).filter(Boolean));
     const missingRequired = requiredCategoriesForTrack(form.licensingTrack).filter((c) => !submittedCategories.has(c));
     if (missingRequired.length) {
-      setErr(`Missing required documents: ${missingRequired.join(", ")}`);
+      setErr(`Missing required documents for validation: ${missingRequired.join(", ")}`);
       setSubmitting(false);
       return;
     }
@@ -129,7 +129,7 @@ export default function OperatorSubmitPage() {
         })),
       };
       const app = await api.submitApplication(payload);
-      setOk("Application submitted successfully.");
+      setOk("Validation completed. Application is now routed for officer review.");
       navigate(`/operator/applications/${app.id}`);
     } catch (error) {
       setErr(error.message);

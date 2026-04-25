@@ -170,9 +170,10 @@ export default function OfficerApplicationPage() {
         ...(comment ? [{ commentText: comment, targetSection: null, targetDocumentId: null }] : []),
         ...documentFixComments,
       ];
+      const timelineNotes = commentsPayload[0]?.commentText?.trim() || null;
       const updated = await api.submitOfficerFeedback(id, {
         newStatus: targetStatus,
-        statusNotes: "Updated from React dashboard",
+        statusNotes: timelineNotes,
         comments: commentsPayload,
       });
       setApp(updated);
