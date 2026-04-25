@@ -23,6 +23,22 @@ const BUSINESS_TYPES_BY_TRACK = {
   ],
 };
 
+const EXPECTED_FORMATS_BY_CATEGORY = {
+  REGISTRATION_DOC: "PDF, DOC, DOCX, TXT",
+  FLOOR_PLAN: "PDF, PNG, JPG, SVG",
+  CCTV_AND_SAFETY_PROOF: "PDF, PNG, JPG, DOC, DOCX",
+  ATTENDANCE_LOG: "CSV, XLS, XLSX, PDF",
+  SUBSIDY_WITHDRAWAL_FORM: "PDF, DOC, DOCX, XLS, XLSX",
+  ENVIRONMENT_COMPLIANCE_RECORD: "PDF, XLS, XLSX, CSV",
+  STAFF_ROSTER: "PDF, XLS, XLSX, CSV",
+  SANITATION_AND_FIRE_CERT: "PDF, PNG, JPG",
+  STAFF_MEDICAL_SCREENING: "PDF, PNG, JPG",
+  HOME_SAFETY_PHOTOS: "PNG, JPG, JPEG, SVG",
+  EQUIPMENT_INVENTORY: "PDF, XLS, XLSX, CSV",
+  CAPACITY_PLAN: "PDF, DOC, DOCX, XLS, XLSX",
+  GENERAL_SUPPORTING: "PDF, DOC, DOCX, PNG, JPG, CSV",
+};
+
 export default function OperatorSubmitPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
@@ -197,6 +213,7 @@ export default function OperatorSubmitPage() {
               </p>
               <p className="hint">Examples: {r.examples}</p>
               <p className="hint">AI rule: {requirementByCategory.get(r.category)?.aiRule}</p>
+              <p className="hint">Expected file format: {EXPECTED_FORMATS_BY_CATEGORY[r.category] || "PDF, DOC, DOCX, PNG, JPG, CSV"}</p>
               <input className="field" type="file" multiple onChange={(e) => addFiles(r.category, e.target.files)} />
               {documentsByCategory.get(r.category)?.length ? (
                 <table style={{ marginTop: 10 }}>

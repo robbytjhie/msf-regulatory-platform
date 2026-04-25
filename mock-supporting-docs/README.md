@@ -19,6 +19,11 @@ Use with the Operator Submit page:
 - `STAFF_ROSTER`: `hfaa_staff_roster_*`
 - `HOME_SAFETY_PHOTOS`: `childminding_home_safety_*`
 
+Floor plan image samples are included:
+
+- PASS: `scenario-pass/ecdc_floor_plan_image_pass.svg`
+- FLAGGED: `scenario-flagged/ecdc_floor_plan_image_flagged.svg`
+
 ## Important for AI outcome checks
 
 The current backend may use either:

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#f6f8fb"/>
+  <rect x="80" y="80" width="1040" height="640" fill="#ffffff" stroke="#9ab3c7" stroke-width="3"/>
+  <rect x="120" y="120" width="260" height="220" fill="#e8f3ff" stroke="#6b8ba4"/>
+  <rect x="420" y="120" width="300" height="220" fill="#eef9e8" stroke="#6a9a67"/>
+  <rect x="760" y="120" width="300" height="220" fill="#fff3e6" stroke="#b08a62"/>
+  <rect x="120" y="380" width="460" height="280" fill="#f0f6ff" stroke="#7d98b3"/>
+  <rect x="620" y="380" width="440" height="280" fill="#f4fff1" stroke="#7ea176"/>
+  <line x1="120" y1="500" x2="580" y2="500" stroke="#8aa0b5" stroke-dasharray="8 8"/>
+  <line x1="620" y1="500" x2="1060" y2="500" stroke="#8aa0b5" stroke-dasharray="8 8"/>
+  <text x="600" y="48" text-anchor="middle" font-family="Arial" font-size="28" fill="#1f3f5b">ECDC Floor Plan - PASS Sample</text>
+  <text x="250" y="240" text-anchor="middle" font-family="Arial" font-size="20" fill="#355">Classroom A</text>
+  <text x="570" y="240" text-anchor="middle" font-family="Arial" font-size="20" fill="#355">Indoor Play</text>
+  <text x="910" y="240" text-anchor="middle" font-family="Arial" font-size="20" fill="#355">Dining Zone</text>
+  <text x="350" y="540" text-anchor="middle" font-family="Arial" font-size="20" fill="#355">Outdoor Play Area</text>
+  <text x="840" y="540" text-anchor="middle" font-family="Arial" font-size="20" fill="#355">Rest / Infant Area</text>
+  <text x="600" y="760" text-anchor="middle" font-family="Arial" font-size="18" fill="#2e5c3c">Scale noted, zone labels clear, egress paths present</text>
+</svg>
+
