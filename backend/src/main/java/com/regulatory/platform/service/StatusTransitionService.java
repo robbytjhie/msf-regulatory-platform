@@ -25,7 +25,9 @@ public class StatusTransitionService {
 
             Map.entry(ApplicationStatus.MANUAL_OFFICER_VALIDATION,
                     Set.of(ApplicationStatus.PENDING_PRE_SITE_RESUBMISSION,
-                            ApplicationStatus.PENDING_APPROVAL)),
+                            ApplicationStatus.SITE_VISIT_SCHEDULED,
+                            ApplicationStatus.PENDING_APPROVAL,
+                            ApplicationStatus.REJECTED)),
 
             Map.entry(ApplicationStatus.UNDER_REVIEW,
                     Set.of(ApplicationStatus.PENDING_PRE_SITE_RESUBMISSION,
