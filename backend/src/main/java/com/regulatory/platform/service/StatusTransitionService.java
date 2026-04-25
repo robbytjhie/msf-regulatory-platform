@@ -23,6 +23,10 @@ public class StatusTransitionService {
             Map.entry(ApplicationStatus.APPLICATION_RECEIVED,
                     Set.of(ApplicationStatus.UNDER_REVIEW)),
 
+            Map.entry(ApplicationStatus.MANUAL_OFFICER_VALIDATION,
+                    Set.of(ApplicationStatus.PENDING_PRE_SITE_RESUBMISSION,
+                            ApplicationStatus.PENDING_APPROVAL)),
+
             Map.entry(ApplicationStatus.UNDER_REVIEW,
                     Set.of(ApplicationStatus.PENDING_PRE_SITE_RESUBMISSION,
                             ApplicationStatus.SITE_VISIT_SCHEDULED,

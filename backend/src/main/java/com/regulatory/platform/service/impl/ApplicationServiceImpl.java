@@ -87,7 +87,21 @@ public class ApplicationServiceImpl implements ApplicationService {
                 application.getDocuments().add(doc);
             }
             application = applicationRepository.save(application);
-            documentVerificationService.startSimulatedVerification(application.getId());
+            if (documentVerificationService.isAiVerificationEnabled()) {
+                documentVerificationService.startSimulatedVerification(application.getId());
+            } else {
+                ApplicationStatus previousStatus = application.getStatus();
+                application.setStatus(ApplicationStatus.MANUAL_OFFICER_VALIDATION);
+                application = applicationRepository.save(application);
+                recordStatusHistory(application, previousStatus, ApplicationStatus.MANUAL_OFFICER_VALIDATION, operator,
+                        "AI unavailable. Routed to manual officer validation.");
+                notificationService.create(
+                        application.getOperator(),
+                        application,
+                        NotificationType.STATUS_CHANGE,
+                        "Application " + application.getReferenceNumber() + " routed to manual officer validation."
+                );
+            }
         }
 
         recordStatusHistory(application, null, ApplicationStatus.APPLICATION_RECEIVED, operator,

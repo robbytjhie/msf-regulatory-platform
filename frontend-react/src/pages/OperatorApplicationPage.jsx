@@ -84,14 +84,14 @@ export default function OperatorApplicationPage() {
 
   const submitResubmit = async () => {
     if (!canResubmit) return;
-    if (!window.confirm("Submit resubmission now?")) return;
+    if (!window.confirm("Submit application now?")) return;
     try {
       setSubmitting(true);
       setErr("");
       setOk("");
       const updated = await api.resubmitApplication(id, resubmit);
       setApp(updated);
-      setOk("Resubmission submitted successfully.");
+      setOk("Application submitted successfully.");
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -236,8 +236,8 @@ export default function OperatorApplicationPage() {
           </p>
         ) : null}
         {issueDocuments.length ? (
-          <table>
-            <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th><th>Replace File</th><th>Validate</th></tr></thead>
+          <table style={{ tableLayout: "fixed" }}>
+            <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th><th>Action</th></tr></thead>
             <tbody>
               {issueDocuments.map((d) => (
                 <tr key={`issue-${d.id}`}>
@@ -248,25 +248,29 @@ export default function OperatorApplicationPage() {
                       {d.aiVerificationStatus || "PENDING"}
                     </span>
                   </td>
-                  <td>{d.aiVerificationNotes || "-"}</td>
                   <td>
-                    <input
-                      className="field"
-                      style={{ maxWidth: 190, padding: "6px 8px", fontSize: 12 }}
-                      type="file"
-                      onChange={(e) => setReplacementFiles((prev) => ({ ...prev, [d.id]: e.target.files?.[0] || null }))}
-                    />
+                    <div style={{ maxWidth: 260, whiteSpace: "normal", wordBreak: "break-word" }}>
+                      {d.aiVerificationNotes || "-"}
+                    </div>
                   </td>
                   <td>
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      style={{ whiteSpace: "nowrap", padding: "8px 10px" }}
-                      disabled={validatingDocId === d.id}
-                      onClick={() => reuploadAndValidate(d)}
-                    >
-                      {validatingDocId === d.id ? "Validating..." : "Re-upload & Validate"}
-                    </button>
+                    <div style={{ maxWidth: 230 }}>
+                      <input
+                        className="field"
+                        style={{ width: "100%", padding: "6px 8px", fontSize: 12, marginBottom: 8 }}
+                        type="file"
+                        onChange={(e) => setReplacementFiles((prev) => ({ ...prev, [d.id]: e.target.files?.[0] || null }))}
+                      />
+                      <button
+                        type="button"
+                        className="btn secondary"
+                        style={{ width: "100%", whiteSpace: "normal", padding: "8px 10px" }}
+                        disabled={validatingDocId === d.id}
+                        onClick={() => reuploadAndValidate(d)}
+                      >
+                        {validatingDocId === d.id ? "Validating..." : "Validate"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -284,7 +288,7 @@ export default function OperatorApplicationPage() {
               <input className="field" value={resubmit.contactPhone} placeholder="Contact Phone (optional)" onChange={(e) => setResubmit((r) => ({ ...r, contactPhone: e.target.value }))} />
               <textarea className="field" value={resubmit.activityDescription} placeholder="Activity Description (optional)" onChange={(e) => setResubmit((r) => ({ ...r, activityDescription: e.target.value }))} />
               <button className="btn" disabled={!canSubmitResubmission || submitting} onClick={submitResubmit}>
-                {submitting ? "Submitting..." : "Submit Resubmission"}
+                {submitting ? "Submitting..." : "Submit Application"}
               </button>
             </div>
             {!allIssueDocsValidated && issueDocuments.length ? (

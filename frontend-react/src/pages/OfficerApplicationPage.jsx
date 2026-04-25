@@ -5,6 +5,7 @@ import { statusClass } from "../statusUtils";
 
 const transitionMap = {
   APPLICATION_RECEIVED: ["UNDER_REVIEW"],
+  MANUAL_OFFICER_VALIDATION: ["PENDING_PRE_SITE_RESUBMISSION", "PENDING_APPROVAL"],
   UNDER_REVIEW: ["PENDING_PRE_SITE_RESUBMISSION", "SITE_VISIT_SCHEDULED", "PENDING_APPROVAL", "REJECTED"],
   PRE_SITE_RESUBMITTED: ["UNDER_REVIEW", "SITE_VISIT_SCHEDULED"],
   SITE_VISIT_SCHEDULED: ["SITE_VISIT_DONE", "AWAITING_POST_SITE_CLARIFICATION", "PENDING_APPROVAL"],
@@ -16,6 +17,32 @@ const transitionMap = {
 
 /** Officer can open the site-visit checklist only in these workflow stages (backend enforces the same). */
 const CHECKLIST_AVAILABLE_STATUSES = new Set(["SITE_VISIT_SCHEDULED", "SITE_VISIT_DONE"]);
+
+const labelToInternalStatus = {
+  "APPLICATION RECEIVED": "APPLICATION_RECEIVED",
+  "MANUAL OFFICER VALIDATION": "MANUAL_OFFICER_VALIDATION",
+  "UNDER REVIEW": "UNDER_REVIEW",
+  "PENDING PRE-SITE RESUBMISSION": "PENDING_PRE_SITE_RESUBMISSION",
+  "PRE-SITE RESUBMITTED": "PRE_SITE_RESUBMITTED",
+  "SITE VISIT SCHEDULED": "SITE_VISIT_SCHEDULED",
+  "SITE VISIT DONE": "SITE_VISIT_DONE",
+  "AWAITING POST-SITE CLARIFICATION": "AWAITING_POST_SITE_CLARIFICATION",
+  "PENDING POST-SITE RESUBMISSION": "PENDING_POST_SITE_RESUBMISSION",
+  "POST-SITE CLARIFICATION RESUBMITTED": "POST_SITE_CLARIFICATION_RESUBMITTED",
+  "PENDING APPROVAL": "PENDING_APPROVAL",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+};
+
+function normalizeInternalStatus(value) {
+  if (!value) return "";
+  const raw = String(value).trim();
+  if (transitionMap[raw]) return raw;
+  const underscored = raw.replace(/\s+/g, "_").toUpperCase();
+  if (transitionMap[underscored]) return underscored;
+  const labelKey = raw.replace(/_/g, " ").toUpperCase();
+  return labelToInternalStatus[labelKey] || underscored;
+}
 
 function docAiBadgeClass(status) {
   if (status === "PASSED") return "badge-green";
@@ -50,16 +77,18 @@ export default function OfficerApplicationPage() {
         .filter((doc) => doc.aiVerificationStatus === "FLAGGED" || doc.aiVerificationStatus === "FAILED")
         .map((doc) => doc.id);
       setRequiredReturnDocIds(defaultIssueDocIds);
-      const allowed = transitionMap[d.internalStatus] || [];
-      setNewStatus(allowed[0] || d.internalStatus || "UNDER_REVIEW");
+      const currentStatus = normalizeInternalStatus(d.internalStatus);
+      const allowed = transitionMap[currentStatus] || [];
+      setNewStatus(allowed[0] || currentStatus || "UNDER_REVIEW");
     }).catch((e) => setErr(e.message));
   }, [id]);
 
   useEffect(() => {
     if (!app?.internalStatus) return;
-    const allowed = transitionMap[app.internalStatus] || [];
+    const currentStatus = normalizeInternalStatus(app.internalStatus);
+    const allowed = transitionMap[currentStatus] || [];
     if (!allowed.length) {
-      setNewStatus(app.internalStatus);
+      setNewStatus(currentStatus);
       return;
     }
     if (!allowed.includes(newStatus)) {
@@ -118,9 +147,10 @@ export default function OfficerApplicationPage() {
       setErr("");
       setOk("");
       let targetStatus = newStatus;
-      if (targetStatus === app.internalStatus) {
-        const allowed = transitionMap[app.internalStatus] || [];
-        const fallback = allowed.find((s) => s !== app.internalStatus);
+      const currentStatus = normalizeInternalStatus(app.internalStatus);
+      if (targetStatus === currentStatus) {
+        const allowed = transitionMap[currentStatus] || [];
+        const fallback = allowed.find((s) => s !== currentStatus);
         if (!fallback) {
           setErr("No valid status transition available from current state.");
           return;
@@ -164,8 +194,9 @@ export default function OfficerApplicationPage() {
   };
 
   if (!app) return <main className="app-shell">{err ? <p className="error">{err}</p> : <p>Loading...</p>}</main>;
-  const allowedTransitions = transitionMap[app.internalStatus] || [];
-  const checklistEnabled = CHECKLIST_AVAILABLE_STATUSES.has(app.internalStatus);
+  const currentStatus = normalizeInternalStatus(app.internalStatus);
+  const allowedTransitions = transitionMap[currentStatus] || [];
+  const checklistEnabled = CHECKLIST_AVAILABLE_STATUSES.has(currentStatus);
 
   return (
     <main className="app-shell">
@@ -202,7 +233,7 @@ export default function OfficerApplicationPage() {
         <p>Track: {app.licensingTrack || "-"}</p>
         <p>Submission Round #{app.submissionRound}</p>
         <p><strong>Final Outcome:</strong> {app.statusLabel === "Approved" || app.statusLabel === "Rejected" ? app.statusLabel : "In Progress"}</p>
-        <p><strong>Current internal state:</strong> {app.internalStatus}</p>
+        <p><strong>Current internal state:</strong> {currentStatus || app.internalStatus}</p>
         {app.statusHistory?.length ? (
           <>
             <h4>Shared Timeline</h4>
@@ -312,6 +343,7 @@ export default function OfficerApplicationPage() {
         <div className="workflow-box">
           <p className="workflow-title">Status Workflow Reference (Officer)</p>
           <p className="workflow-line">APPLICATION_RECEIVED {"->"} UNDER_REVIEW</p>
+          <p className="workflow-line">MANUAL_OFFICER_VALIDATION {"->"} PENDING_PRE_SITE_RESUBMISSION | PENDING_APPROVAL</p>
           <p className="workflow-line">UNDER_REVIEW {"->"} PENDING_PRE_SITE_RESUBMISSION | SITE_VISIT_SCHEDULED | PENDING_APPROVAL | REJECTED</p>
           <p className="workflow-line">PRE_SITE_RESUBMITTED {"->"} UNDER_REVIEW | SITE_VISIT_SCHEDULED</p>
           <p className="workflow-line">SITE_VISIT_SCHEDULED/SITE_VISIT_DONE {"->"} AWAITING_POST_SITE_CLARIFICATION | PENDING_APPROVAL</p>
@@ -327,7 +359,7 @@ export default function OfficerApplicationPage() {
             {allowedTransitions.length ? (
               allowedTransitions.map((s) => <option key={s} value={s}>{s}</option>)
             ) : (
-              <option value={app.internalStatus}>{app.internalStatus}</option>
+              <option value={currentStatus || app.internalStatus}>{currentStatus || app.internalStatus}</option>
             )}
           </select>
           <textarea className="field" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Officer comment" />

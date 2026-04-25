@@ -8,6 +8,7 @@ package com.regulatory.platform.enums;
 public enum ApplicationStatus {
 
     APPLICATION_RECEIVED("Application Received", "Submitted"),
+    MANUAL_OFFICER_VALIDATION("Manual Officer Validation", "Manual Officer Validation"),
     UNDER_REVIEW("Under Review", "Under Review"),
     PENDING_PRE_SITE_RESUBMISSION("Pending Pre-Site Resubmission", "Pending Pre-Site Resubmission"),
     PRE_SITE_RESUBMITTED("Pre-Site Resubmitted", "Pre-Site Resubmitted"),

@@ -1,5 +1,6 @@
 export const NEEDS_ACTION = new Set([
   "APPLICATION_RECEIVED",
+  "MANUAL_OFFICER_VALIDATION",
   "UNDER_REVIEW",
   "PRE_SITE_RESUBMITTED",
   "POST_SITE_CLARIFICATION_RESUBMITTED",
@@ -7,6 +8,7 @@ export const NEEDS_ACTION = new Set([
 ]);
 
 export const IN_PROGRESS = new Set([
+  "MANUAL_OFFICER_VALIDATION",
   "UNDER_REVIEW",
   "PENDING_PRE_SITE_RESUBMISSION",
   "SITE_VISIT_SCHEDULED",
@@ -39,6 +41,7 @@ export function statusClass(label) {
     Submitted: "badge-blue",
     "Under Review": "badge-amber",
     "Application Received": "badge-blue",
+    "Manual Officer Validation": "badge-amber",
     "Pending Pre-Site Resubmission": "badge-red",
     "Pre-Site Resubmitted": "badge-amber",
     "Pending Site Visit": "badge-purple",

@@ -4,6 +4,7 @@ import com.regulatory.platform.entity.Document;
 import com.regulatory.platform.repository.DocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +19,20 @@ public class DocumentVerificationService {
 
     private final DocumentRepository documentRepository;
     private final ExternalDocumentAiAnalysisService externalDocumentAiAnalysisService;
+    @Value("${app.ai.verification-enabled:true}")
+    private boolean aiVerificationEnabled;
+
+    public boolean isAiVerificationEnabled() {
+        return aiVerificationEnabled;
+    }
 
     @Async
     @Transactional
     public void startSimulatedVerification(Long applicationId) {
+        if (!aiVerificationEnabled) {
+            markAllAsManualReviewRequired(applicationId);
+            return;
+        }
         // Allow submit transaction to complete before reading.
         sleep(1200);
         List<Document> docs = documentRepository.findByApplicationIdOrderByCreatedAtDesc(applicationId);
@@ -55,6 +66,14 @@ public class DocumentVerificationService {
     @Async
     @Transactional
     public void startSimulatedVerificationForDocument(Long documentId) {
+        if (!aiVerificationEnabled) {
+            Document doc = documentRepository.findById(documentId).orElse(null);
+            if (doc == null) return;
+            doc.setAiVerificationStatus(Document.AiVerificationStatus.FAILED);
+            doc.setAiVerificationNotes("AI verification is unavailable. Officer manual validation is required.");
+            documentRepository.save(doc);
+            return;
+        }
         sleep(700);
         Document doc = documentRepository.findById(documentId).orElse(null);
         if (doc == null) return;
@@ -78,5 +97,16 @@ public class DocumentVerificationService {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private void markAllAsManualReviewRequired(Long applicationId) {
+        List<Document> docs = documentRepository.findByApplicationIdOrderByCreatedAtDesc(applicationId);
+        if (docs.isEmpty()) return;
+        for (Document doc : docs) {
+            doc.setAiVerificationStatus(Document.AiVerificationStatus.FAILED);
+            doc.setAiVerificationNotes("AI verification is unavailable. Officer manual validation is required.");
+        }
+        documentRepository.saveAll(docs);
+        log.warn("AI verification disabled; application {} routed to manual officer validation", applicationId);
     }
 }
