@@ -6,8 +6,8 @@ All three use cases are implemented, scoped to an MVP that demonstrates the full
 end-to-end lifecycle without over-engineering secondary concerns.
 
 ### UC1 — Operator Application Submission & Resubmission ✅
-- Full guided submission form (3-step wizard: Business Info → Documents → Review)
-- Drag-and-drop document upload with simulated AI verification status (PENDING → PASSED/FLAGGED)
+- Guided submission form with conditional document upload sections (visible after required track/business selection)
+- Drag-and-drop document upload with AI verification status surfaced to both operator and officer views
 - Resubmission modal with partial-field update (only changed fields required)
 - Round counter increments per resubmission; all previous data retained
 
@@ -36,11 +36,11 @@ end-to-end lifecycle without over-engineering secondary concerns.
 |---|---|---|
 | Email notifications | Stubbed — log message on status change | Requires SMTP/SES config; behaviour is clear from the code. Wire `JavaMailSender` in 1–2 hours |
 | File storage | In-memory only; no actual file persistence | Real work requires S3/GCS config. The upload API endpoint exists; storage is the only missing piece |
-| AI document verification | Simulated on frontend (random PASSED/FLAGGED after 1.5s) | No LLM integration specified; hook is in place server-side via `Document.AiVerificationStatus` |
+| AI document verification | Metadata-based backend verification (external AI optional + deterministic heuristic fallback) | No binary/OCR extraction yet; current checks rely on filename/type/size/category metadata |
 | Pagination | Not implemented on list endpoints | MVP scale; add `Pageable` to repository queries when needed |
 | Admin portal | No admin-specific UI | Not in the three use cases; `UserRole.ADMIN` exists in the enum |
 | Password reset / registration | No self-serve registration | Officers and operators are provisioned by an admin; demo users seeded via `DataSeeder` |
-| Real-time notifications | No WebSocket | Polling or SSE can be added; notifications are logged server-side |
+| Real-time notifications | No WebSocket/SSE push | Operator detail uses polling for near real-time updates; full event push can be added later |
 | Operator multi-user (org accounts) | Single user per organisation | Spec is silent on this; `organisationName` field exists for future use |
 
 ---
@@ -51,10 +51,9 @@ end-to-end lifecycle without over-engineering secondary concerns.
    specified. Any ambiguous transition (e.g. officer re-triggering UNDER_REVIEW from
    PRE_SITE_RESUBMITTED) is included in the state machine.
 
-2. **Operators cannot see `PENDING_APPROVAL`.** The spec says "Operators cannot see
-   the internal approval stage at any point." This is enforced by returning `null`
-   for `internalStatus` in all operator responses, and the `getOperatorLabel()` method
-   maps `PENDING_APPROVAL` → `"Under Review"`.
+2. **Internal status remains hidden from operator APIs.** `internalStatus` is always
+   `null` for operator-facing responses; operators rely on the mapped `statusLabel`
+   for workflow guidance.
 
 3. **"No need to re-enter entire application"** means a PATCH endpoint accepting only
    changed fields (`ResubmitRequest` has all nullable fields).
@@ -67,8 +66,11 @@ end-to-end lifecycle without over-engineering secondary concerns.
    created (presumably templated per licence type). The `DataSeeder` inserts a realistic
    5-item checklist for the demo application.
 
-6. **"Automatic operator notification"** (UC2) is interpreted as a logged event.
-   The service layer is structured to make adding an actual email call trivial.
+6. **"Automatic operator notification"** (UC2) is interpreted as in-app state visibility
+   plus logged notification records. Email/push delivery is deferred.
+
+7. **AI fallback state is an explicit extension.** `MANUAL_OFFICER_VALIDATION` was added
+   to support business continuity when AI verification is unavailable.
 
 ---
 

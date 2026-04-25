@@ -106,7 +106,7 @@ Authentication uses **email/password login + JWT bearer token**.
 
 - Login endpoint: `POST /api/auth/login`
 - Backend issues signed JWT (HS256) via `JwtService`
-- Frontend stores token in `localStorage` and sends `Authorization: Bearer <token>`
+- Frontend stores token in `sessionStorage` (with `localStorage` fallback cleanup) and sends `Authorization: Bearer <token>`
 - Security enforcement is done by `JwtAuthFilter` + `SecurityConfig`
 - Roles:
   - `OFFICER`
@@ -126,7 +126,7 @@ JWT secret source:
 
 Document verification can call an external model using **metadata only** (filename, MIME type, size, category). File contents are not sent until upload storage is implemented.
 
-Priority: **Groq** first, then **Hugging Face Inference** if Groq returns no usable result or is not configured. If neither key is set, the backend keeps the **built-in random simulation**.
+Priority: **Groq** first, then **Hugging Face Inference** if Groq returns no usable result or is not configured. If neither key is set, the backend applies a **deterministic local heuristic** so each document still gets a clear status and reason.
 
 | Variable | Purpose |
 |----------|---------|
@@ -246,10 +246,28 @@ of valid transitions. Any illegal transition throws `InvalidStatusTransitionExce
 only be triggered by `OPERATOR`, and status-setting transitions only by `OFFICER`.
 
 ### Role-Specific Status Labels
-`ApplicationStatus` enum has both `officerLabel` and `operatorLabel`. The spec's constraint
-that "operators cannot see the internal approval stage" is enforced by:
-1. `getOperatorLabel()` maps `PENDING_APPROVAL` → `"Under Review"`
-2. `ApplicationDetailResponse.forOperator()` sets `internalStatus = null`
+`ApplicationStatus` enum has both `officerLabel` and `operatorLabel`. Operator responses
+still hide `internalStatus` via `ApplicationDetailResponse.forOperator()`, but status labels
+shown to operators now follow the agreed mapping (including `Pending Approval` and
+`Pending Post-Site Resubmission` wording).
+
+### Status Mapping (Current)
+| Internal System Status | Officer View | Operator View |
+|---|---|---|
+| Application Received | Application Received | Submitted |
+| Under Review | Under Review | Under Review |
+| Pending Pre-Site Resubmission | Pending Pre-Site Resubmission | Pending Pre-Site Resubmission |
+| Pre-Site Resubmitted | Pre-Site Resubmitted | Pre-Site Resubmitted |
+| Site Visit Scheduled | Site Visit Scheduled | Pending Site Visit |
+| Site Visit Done | Site Visit Done | Pending Post-Site Clarification |
+| Awaiting Post-Site Clarification | Awaiting Post-Site Clarification | Pending Post-Site Clarification |
+| Pending Post-Site Resubmission | Awaiting Post-Site Resubmission | Pending Post-Site Resubmission |
+| Post-Site Clarification Resubmitted | Post-Site Clarification Resubmitted | Post-Site Resubmitted |
+| Pending Approval | Route to Approval | Pending Approval |
+| Approved | Approved | Approved |
+| Rejected | Rejected | Rejected |
+
+Note: the workflow also includes `MANUAL_OFFICER_VALIDATION` as an AI-fallback operational state.
 
 ### Operator Checklist Isolation (UC3)
 The repository has two separate queries:
@@ -311,7 +329,7 @@ role-gating rules. This is the most critical business logic unit to test.
 ## AI Usage
 
 ### Tools Used
-- **Claude (Anthropic)** — primary coding assistant throughout
+- **Cursor AI assistants** (Claude and Codex models across implementation iterations)
 
 ### How Claude Was Used
 
@@ -329,7 +347,8 @@ Example prompts used:
 > "Here are my entities and the spec's status mapping table. Generate
 > `ApplicationDetailResponse` with two static factory methods — `forOfficer` and
 > `forOperator`. The operator version must set `internalStatus = null` and use the
-> `getOperatorLabel()` method. Never expose PENDING_APPROVAL to the operator."
+> `getOperatorLabel()` method so role-specific labels are consistent while internal
+> states remain hidden from operator APIs."
 
 > "Generate a `ChecklistServiceImpl` where `getFlaggedItemsForOperator` queries only
 > items with status `NEEDS_CLARIFICATION`, using the `flaggedOnly()` DTO factory. The
@@ -370,4 +389,5 @@ treated as a first draft that needed validation, not a finished product.
 - No email notifications (logged server-side only)
 - No pagination on list endpoints
 - No admin UI for user provisioning
-- AI verification is simulated on the frontend only
+- No real binary file storage/download endpoint yet (current file open uses simulated preview content)
+- AI verification uses metadata only (filename/type/size/category), not full document content OCR/parsing
