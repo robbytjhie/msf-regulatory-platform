@@ -6,6 +6,7 @@ import OfficerDashboardPage from "./OfficerDashboardPage";
 const listOfficerApps = vi.fn();
 
 vi.mock("../apiClient", () => ({
+  subscribeNotificationStream: () => ({ supported: false, close: () => {} }),
   api: {
     listOfficerApps: (...args) => listOfficerApps(...args),
   },

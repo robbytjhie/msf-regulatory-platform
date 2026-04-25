@@ -8,6 +8,7 @@ const getFlaggedItems = vi.fn();
 const getOperatorDocumentStatuses = vi.fn();
 
 vi.mock("../apiClient", () => ({
+  subscribeNotificationStream: () => ({ supported: false, close: () => {} }),
   api: {
     getOperatorApplication: (...args) => getOperatorApplication(...args),
     getFlaggedItems: (...args) => getFlaggedItems(...args),

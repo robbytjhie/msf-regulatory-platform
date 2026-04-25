@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api } from "../apiClient";
+import { api, subscribeNotificationStream } from "../apiClient";
 import { statusClass } from "../statusUtils";
 
 const transitionMap = {
@@ -112,6 +112,7 @@ export default function OfficerApplicationPage() {
   const [lastDocPollAt, setLastDocPollAt] = useState(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [documentReturnState, setDocumentReturnState] = useState({});
+  const [pollingFallback, setPollingFallback] = useState(true);
 
   useEffect(() => {
     api.getOfficerApplication(id).then((d) => {
@@ -125,6 +126,31 @@ export default function OfficerApplicationPage() {
 
   useEffect(() => {
     if (!id) return;
+    let active = true;
+    const sub = subscribeNotificationStream({
+      onOpen: () => active && setPollingFallback(false),
+      onError: () => active && setPollingFallback(true),
+      onMessage: async () => {
+        try {
+          const fresh = await api.getOfficerApplication(id);
+          if (!active) return;
+          setApp(fresh);
+        } catch {
+          // Polling fallback handles prolonged stream disruption.
+        }
+      },
+    });
+    if (!sub.supported) {
+      setPollingFallback(true);
+    }
+    return () => {
+      active = false;
+      sub.close();
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id || !pollingFallback) return;
     const poll = async () => {
       try {
         const fresh = await api.getOfficerApplication(id);
@@ -136,7 +162,7 @@ export default function OfficerApplicationPage() {
     poll();
     const timer = window.setInterval(poll, 2000);
     return () => window.clearInterval(timer);
-  }, [id]);
+  }, [id, pollingFallback]);
 
   useEffect(() => {
     if (!app?.internalStatus) return;

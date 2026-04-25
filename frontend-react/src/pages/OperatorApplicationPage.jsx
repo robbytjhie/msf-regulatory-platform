@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api } from "../apiClient";
+import { api, subscribeNotificationStream } from "../apiClient";
 import { statusClass } from "../statusUtils";
 
 function formatTs(value) {
@@ -30,6 +30,7 @@ export default function OperatorApplicationPage() {
   const [replacementFiles, setReplacementFiles] = useState({});
   const [validatingDocId, setValidatingDocId] = useState(null);
   const [resubmitInitialized, setResubmitInitialized] = useState(false);
+  const [pollingFallback, setPollingFallback] = useState(true);
 
   // Hydrates API data and pre-fills resubmission fields exactly once so polling
   // does not overwrite operator edits in progress.
@@ -55,6 +56,35 @@ export default function OperatorApplicationPage() {
 
   useEffect(() => {
     if (!id) return;
+    let active = true;
+    const sub = subscribeNotificationStream({
+      onOpen: () => active && setPollingFallback(false),
+      onError: () => active && setPollingFallback(true),
+      onMessage: async () => {
+        try {
+          const [freshApp, freshFlagged] = await Promise.all([
+            api.getOperatorApplication(id),
+            api.getFlaggedItems(id).catch(() => []),
+          ]);
+          if (!active) return;
+          hydrateApplication(freshApp, false);
+          setFlagged(freshFlagged);
+        } catch {
+          // Keep fallback polling behavior on transient failures.
+        }
+      },
+    });
+    if (!sub.supported) {
+      setPollingFallback(true);
+    }
+    return () => {
+      active = false;
+      sub.close();
+    };
+  }, [id, resubmitInitialized]);
+
+  useEffect(() => {
+    if (!id || !pollingFallback) return;
     // Poll both app detail + checklist clarifications for near-real-time two-party workflow.
     const poll = async () => {
       try {
@@ -71,7 +101,7 @@ export default function OperatorApplicationPage() {
     poll();
     const timer = window.setInterval(poll, 2000);
     return () => window.clearInterval(timer);
-  }, [id, resubmitInitialized]);
+  }, [id, resubmitInitialized, pollingFallback]);
 
   useEffect(() => {
     if (!app?.documents?.length) {

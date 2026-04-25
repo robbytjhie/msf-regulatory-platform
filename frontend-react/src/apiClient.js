@@ -52,6 +52,25 @@ export async function apiRequest(path, options = {}) {
   return json.data;
 }
 
+export function subscribeNotificationStream({ onOpen, onMessage, onError } = {}) {
+  if (typeof window === "undefined" || typeof window.EventSource !== "function") {
+    return { supported: false, close: () => {} };
+  }
+  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+  if (!token) {
+    return { supported: false, close: () => {} };
+  }
+  const streamUrl = `/api/notifications/stream?token=${encodeURIComponent(token)}`;
+  const es = new window.EventSource(streamUrl);
+  es.onopen = () => onOpen?.();
+  es.onmessage = (evt) => onMessage?.(evt);
+  es.onerror = (evt) => onError?.(evt);
+  return {
+    supported: true,
+    close: () => es.close(),
+  };
+}
+
 export const api = {
   login: (email, password) =>
     apiRequest("/api/auth/login", {

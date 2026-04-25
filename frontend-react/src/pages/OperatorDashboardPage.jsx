@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../apiClient";
+import { api, subscribeNotificationStream } from "../apiClient";
 import { pendingOwnerByStatusLabel, statusClass } from "../statusUtils";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
@@ -18,8 +18,33 @@ export default function OperatorDashboardPage() {
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState("lastModifiedDesc");
   const [gotoPage, setGotoPage] = useState("");
+  const [pollingFallback, setPollingFallback] = useState(true);
 
   useEffect(() => {
+    let active = true;
+    const sub = subscribeNotificationStream({
+      onOpen: () => active && setPollingFallback(false),
+      onError: () => active && setPollingFallback(true),
+      onMessage: async () => {
+        try {
+          const data = await api.listOperatorApps();
+          if (active) setApps(data);
+        } catch {
+          // Let polling fallback recover if SSE updates fail.
+        }
+      },
+    });
+    if (!sub.supported) {
+      setPollingFallback(true);
+    }
+    return () => {
+      active = false;
+      sub.close();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pollingFallback) return;
     let active = true;
     const load = async () => {
       try {
@@ -35,7 +60,7 @@ export default function OperatorDashboardPage() {
       active = false;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [pollingFallback]);
 
   const filtered = useMemo(() => {
     let list = apps;

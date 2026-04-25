@@ -6,6 +6,7 @@ import OperatorDashboardPage from "./OperatorDashboardPage";
 const listOperatorApps = vi.fn();
 
 vi.mock("../apiClient", () => ({
+  subscribeNotificationStream: () => ({ supported: false, close: () => {} }),
   api: {
     listOperatorApps: (...args) => listOperatorApps(...args),
   },
