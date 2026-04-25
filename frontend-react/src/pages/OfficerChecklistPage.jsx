@@ -10,9 +10,18 @@ export default function OfficerChecklistPage() {
   const [ok, setOk] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [applicationInternalStatus, setApplicationInternalStatus] = useState("");
 
   useEffect(() => {
-    api.getChecklist(id).then(setItems).catch((e) => setErr(e.message));
+    Promise.all([
+      api.getChecklist(id),
+      api.getOfficerApplication(id),
+    ])
+      .then(([checklist, application]) => {
+        setItems(checklist);
+        setApplicationInternalStatus(application?.internalStatus || "");
+      })
+      .catch((e) => setErr(e.message));
   }, [id]);
 
   const logout = () => {
@@ -35,6 +44,12 @@ export default function OfficerChecklistPage() {
     })),
   });
   const hasPendingItems = items.some((i) => i.status === "PENDING");
+  const allChecklistResolved = items.length > 0 && items.every((i) => i.status === "SATISFACTORY" || i.status === "RESOLVED");
+  const inApprovalOrTerminal =
+    applicationInternalStatus === "PENDING_APPROVAL"
+    || applicationInternalStatus === "APPROVED"
+    || applicationInternalStatus === "REJECTED";
+  const checklistLocked = allChecklistResolved && inApprovalOrTerminal;
 
   const saveDraft = async () => {
     if (!window.confirm("Save checklist draft?")) return;
@@ -83,7 +98,12 @@ export default function OfficerChecklistPage() {
                 <td>{i.itemCode}</td>
                 <td>{i.itemTitle}</td>
                 <td>
-                  <select className="field" value={i.status} onChange={(e) => updateItem(i.id, { status: e.target.value })}>
+                  <select
+                    className="field"
+                    value={i.status}
+                    disabled={checklistLocked}
+                    onChange={(e) => updateItem(i.id, { status: e.target.value })}
+                  >
                     <option value="PENDING">PENDING</option>
                     <option value="SATISFACTORY">SATISFACTORY</option>
                     <option value="NEEDS_CLARIFICATION">NEEDS_CLARIFICATION</option>
@@ -91,22 +111,32 @@ export default function OfficerChecklistPage() {
                   </select>
                 </td>
                 <td>
-                  <input className="field" value={i.officerComment || ""} onChange={(e) => updateItem(i.id, { officerComment: e.target.value })} />
+                  <input
+                    className="field"
+                    disabled={checklistLocked}
+                    value={i.officerComment || ""}
+                    onChange={(e) => updateItem(i.id, { officerComment: e.target.value })}
+                  />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {checklistLocked ? (
+          <p className="hint" style={{ marginTop: 10 }}>
+            Checklist is locked because all items are resolved and application is already in approval/terminal stage.
+          </p>
+        ) : null}
         {hasPendingItems ? (
           <p className="hint" style={{ marginTop: 10 }}>
             Submission is disabled while checklist items are still <code>PENDING</code>.
           </p>
         ) : null}
         <div className="top" style={{ marginTop: 12 }}>
-          <button className="btn secondary" disabled={savingDraft} onClick={saveDraft}>
+          <button className="btn secondary" disabled={savingDraft || checklistLocked} onClick={saveDraft}>
             {savingDraft ? "Saving..." : "Save Draft"}
           </button>
-          <button className="btn" disabled={submitting || hasPendingItems} onClick={submitChecklist}>
+          <button className="btn" disabled={submitting || hasPendingItems || checklistLocked} onClick={submitChecklist}>
             {submitting ? "Submitting..." : "Submit Checklist"}
           </button>
         </div>

@@ -9,6 +9,11 @@ function formatTs(value) {
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
 }
 
+function operatorVisibleVerificationNotes(doc) {
+  if (doc?.aiVerificationStatus === "PASSED") return "-";
+  return doc?.aiVerificationNotes || "-";
+}
+
 export default function OperatorApplicationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -259,7 +264,7 @@ export default function OperatorApplicationPage() {
                         {d.aiVerificationStatus || "PENDING"}
                       </span>
                     </td>
-                    <td>{d.aiVerificationNotes || "-"}</td>
+                    <td>{operatorVisibleVerificationNotes(d)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -286,7 +291,7 @@ export default function OperatorApplicationPage() {
                       : (d.aiVerificationStatus || "PENDING");
                     const displayNotes = officerReturned
                       ? (unresolvedOfficerReasonByDocId.get(d.id) || "Returned by officer for correction.")
-                      : (d.aiVerificationNotes || "-");
+                      : operatorVisibleVerificationNotes(d);
                     return (
                       <>
                   <td style={{ wordBreak: "break-word" }}>{d.originalFileName}</td>
