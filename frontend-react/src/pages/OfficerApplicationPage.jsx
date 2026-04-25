@@ -373,6 +373,24 @@ export default function OfficerApplicationPage() {
             </>
           ) : null}
         </dl>
+        {app.roundFieldChanges?.length ? (
+          <>
+            <h4>Changes Since Previous Round</h4>
+            {app.roundDiffNote ? <p className="hint">{app.roundDiffNote}</p> : null}
+            <table>
+              <thead><tr><th>Field</th><th>Previous</th><th>Current</th></tr></thead>
+              <tbody>
+                {app.roundFieldChanges.map((c, idx) => (
+                  <tr key={`${c.field}-${idx}`}>
+                    <td>{c.field}</td>
+                    <td>{c.previousValue || "-"}</td>
+                    <td>{c.currentValue || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ) : null}
 
         {app.documents?.length ? (
           <>

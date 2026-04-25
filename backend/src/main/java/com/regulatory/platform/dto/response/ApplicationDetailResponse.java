@@ -36,7 +36,9 @@ public record ApplicationDetailResponse(
         LocalDateTime lastModifiedAt,
         List<DocumentResponse> documents,
         List<OfficerCommentResponse> officerComments,
-        List<StatusHistoryResponse> statusHistory
+        List<StatusHistoryResponse> statusHistory,
+        List<RoundFieldChangeResponse> roundFieldChanges,
+        String roundDiffNote
 ) {
 
     public static ApplicationDetailResponse forOfficer(Application app) {
@@ -59,7 +61,9 @@ public record ApplicationDetailResponse(
                 app.getLastModifiedAt(),
                 app.getDocuments().stream().map(DocumentResponse::from).toList(),
                 app.getOfficerComments().stream().map(OfficerCommentResponse::from).toList(),
-                app.getStatusHistory().stream().map(StatusHistoryResponse::forOfficer).toList()
+                app.getStatusHistory().stream().map(StatusHistoryResponse::forOfficer).toList(),
+                List.of(),
+                null
         );
     }
 
@@ -84,7 +88,9 @@ public record ApplicationDetailResponse(
                 app.getDocuments().stream().map(DocumentResponse::from).toList(),
                 // Operator sees all comments (unresolved shown prominently on UI)
                 app.getOfficerComments().stream().map(OfficerCommentResponse::from).toList(),
-                app.getStatusHistory().stream().map(StatusHistoryResponse::forOperator).toList()
+                app.getStatusHistory().stream().map(StatusHistoryResponse::forOperator).toList(),
+                List.of(),
+                null
         );
     }
 }

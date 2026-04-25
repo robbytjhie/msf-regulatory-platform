@@ -5,6 +5,7 @@ import com.regulatory.platform.dto.request.DocumentReuploadRequest;
 import com.regulatory.platform.dto.request.OfficerFeedbackRequest;
 import com.regulatory.platform.dto.request.ResubmitRequest;
 import com.regulatory.platform.dto.response.ApplicationDetailResponse;
+import com.regulatory.platform.dto.response.RoundFieldChangeResponse;
 import com.regulatory.platform.dto.response.ApplicationSummaryResponse;
 import com.regulatory.platform.dto.response.DocumentResponse;
 import com.regulatory.platform.entity.*;
@@ -50,6 +51,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final DocumentVerificationService documentVerificationService;
     private final LocalDocumentStorageService localDocumentStorageService;
     private final ChecklistItemRepository checklistItemRepository;
+    private final ApplicationRoundSnapshotRepository applicationRoundSnapshotRepository;
 
     // ── UC1: Operator Submission ──────────────────────────────────
 
@@ -111,6 +113,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         recordStatusHistory(application, null, ApplicationStatus.APPLICATION_RECEIVED, operator,
                 "Initial submission");
+        saveRoundSnapshot(application);
 
         log.info("Application {} submitted by operator {}", refNum, operator.getEmail());
         initializeCollections(application);
@@ -148,6 +151,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .forEach(c -> c.setResolved(true));
 
         applicationRepository.save(application);
+        saveRoundSnapshot(application);
         recordStatusHistory(application, previousStatus, targetStatus, operator,
                 "Round %d resubmission".formatted(application.getSubmissionRound()));
 
@@ -174,7 +178,8 @@ public class ApplicationServiceImpl implements ApplicationService {
     public ApplicationDetailResponse getForOfficer(Long applicationId, User officer) {
         Application application = findWithUsersOrThrow(applicationId);
         initializeCollections(application);
-        return ApplicationDetailResponse.forOfficer(application);
+        ApplicationDetailResponse base = ApplicationDetailResponse.forOfficer(application);
+        return withRoundDiff(base, buildRoundFieldDiffs(application.getId()));
     }
 
     @Override
@@ -461,6 +466,82 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .notes(notes)
                 .build();
         statusHistoryRepository.save(history);
+    }
+
+    private void saveRoundSnapshot(Application application) {
+        String docSummary = (application.getDocuments() == null ? List.<Document>of() : application.getDocuments())
+                .stream()
+                .filter(d -> d.getSubmissionRound() == application.getSubmissionRound())
+                .map(d -> (d.getDocumentCategory() == null ? "-" : d.getDocumentCategory()) + ":" +
+                        (d.getOriginalFileName() == null ? "-" : d.getOriginalFileName()))
+                .sorted()
+                .reduce((a, b) -> a + " | " + b)
+                .orElse("-");
+        ApplicationRoundSnapshot snapshot = ApplicationRoundSnapshot.builder()
+                .application(application)
+                .submissionRound(application.getSubmissionRound())
+                .businessName(application.getBusinessName())
+                .businessType(application.getBusinessType())
+                .businessAddress(application.getBusinessAddress())
+                .contactPhone(application.getContactPhone())
+                .activityDescription(application.getActivityDescription())
+                .documentSummary(docSummary)
+                .build();
+        applicationRoundSnapshotRepository.save(snapshot);
+    }
+
+    private List<RoundFieldChangeResponse> buildRoundFieldDiffs(Long applicationId) {
+        List<ApplicationRoundSnapshot> snapshots = applicationRoundSnapshotRepository
+                .findByApplicationIdOrderBySubmissionRoundAsc(applicationId);
+        if (snapshots.size() < 2) return List.of();
+        ApplicationRoundSnapshot previous = snapshots.get(snapshots.size() - 2);
+        ApplicationRoundSnapshot current = snapshots.get(snapshots.size() - 1);
+        List<RoundFieldChangeResponse> changes = new ArrayList<>();
+        addChange(changes, "Business Name", previous.getBusinessName(), current.getBusinessName());
+        addChange(changes, "Business Type", previous.getBusinessType(), current.getBusinessType());
+        addChange(changes, "Business Address", previous.getBusinessAddress(), current.getBusinessAddress());
+        addChange(changes, "Contact Phone", previous.getContactPhone(), current.getContactPhone());
+        addChange(changes, "Activity Description", previous.getActivityDescription(), current.getActivityDescription());
+        addChange(changes, "Documents (this round)", previous.getDocumentSummary(), current.getDocumentSummary());
+        return changes;
+    }
+
+    private void addChange(List<RoundFieldChangeResponse> out, String field, String previous, String current) {
+        String p = previous == null ? "-" : previous;
+        String c = current == null ? "-" : current;
+        if (!p.equals(c)) {
+            out.add(new RoundFieldChangeResponse(field, p, c));
+        }
+    }
+
+    private ApplicationDetailResponse withRoundDiff(ApplicationDetailResponse base,
+                                                    List<RoundFieldChangeResponse> changes) {
+        String note = changes.isEmpty()
+                ? null
+                : "This section exists so officers can review only the latest round changes instead of re-reading the full application.";
+        return new ApplicationDetailResponse(
+                base.id(),
+                base.referenceNumber(),
+                base.statusLabel(),
+                base.internalStatus(),
+                base.businessName(),
+                base.licensingTrack(),
+                base.businessType(),
+                base.businessAddress(),
+                base.contactPhone(),
+                base.activityDescription(),
+                base.submissionRound(),
+                base.operatorName(),
+                base.operatorEmail(),
+                base.assignedOfficerName(),
+                base.submittedAt(),
+                base.lastModifiedAt(),
+                base.documents(),
+                base.officerComments(),
+                base.statusHistory(),
+                changes,
+                note
+        );
     }
 
     private String generateReferenceNumber() {
