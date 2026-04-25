@@ -166,10 +166,10 @@ export default function OperatorApplicationPage() {
             {app.officerComments.map((c) => <p key={c.id}>- {c.commentText}</p>)}
           </>
         ) : null}
-        {issueDocuments.length ? (
+        {app.documents?.length ? (
           <>
             <div className="doc-table-header">
-              <h4>Documents Requiring Fix</h4>
+              <h4>All Uploaded Documents</h4>
               {docPollActive ? (
                 <p className="doc-poll-meta">
                   <span className="live">Live updates</span>
@@ -182,7 +182,7 @@ export default function OperatorApplicationPage() {
             <table>
               <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th></tr></thead>
               <tbody>
-                {issueDocuments.map((d) => (
+                {app.documents.map((d) => (
                   <tr key={d.id}>
                     <td>{d.originalFileName}</td>
                     <td>{d.documentCategory || "-"}</td>
@@ -197,9 +197,27 @@ export default function OperatorApplicationPage() {
               </tbody>
             </table>
           </>
-        ) : (
-          <p className="hint">No unresolved document issues at this time.</p>
-        )}
+        ) : null}
+        <h4>Documents Requiring Fix</h4>
+        {issueDocuments.length ? (
+          <table>
+            <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th></tr></thead>
+            <tbody>
+              {issueDocuments.map((d) => (
+                <tr key={`issue-${d.id}`}>
+                  <td>{d.originalFileName}</td>
+                  <td>{d.documentCategory || "-"}</td>
+                  <td>
+                    <span className={`badge ${d.aiVerificationStatus === "PASSED" ? "badge-green" : d.aiVerificationStatus === "FLAGGED" ? "badge-red" : "badge-amber"}`}>
+                      {d.aiVerificationStatus || "PENDING"}
+                    </span>
+                  </td>
+                  <td>{d.aiVerificationNotes || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <p className="hint">No unresolved document issues at this time.</p>}
         <h4>Resubmit Updated Fields</h4>
         {!canResubmit ? <div className="hint">Resubmission is only available when status is Pending Pre-Site Resubmission or Awaiting Post-Site Resubmission.</div> : null}
         <div className="button-grid">

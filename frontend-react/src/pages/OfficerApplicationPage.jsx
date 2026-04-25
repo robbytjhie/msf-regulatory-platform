@@ -56,6 +56,18 @@ export default function OfficerApplicationPage() {
   }, [id]);
 
   useEffect(() => {
+    if (!app?.internalStatus) return;
+    const allowed = transitionMap[app.internalStatus] || [];
+    if (!allowed.length) {
+      setNewStatus(app.internalStatus);
+      return;
+    }
+    if (!allowed.includes(newStatus)) {
+      setNewStatus(allowed[0]);
+    }
+  }, [app?.internalStatus]);
+
+  useEffect(() => {
     if (!app?.documents?.length) {
       setDocPollActive(false);
       return;
@@ -105,6 +117,17 @@ export default function OfficerApplicationPage() {
       setSubmitting(true);
       setErr("");
       setOk("");
+      let targetStatus = newStatus;
+      if (targetStatus === app.internalStatus) {
+        const allowed = transitionMap[app.internalStatus] || [];
+        const fallback = allowed.find((s) => s !== app.internalStatus);
+        if (!fallback) {
+          setErr("No valid status transition available from current state.");
+          return;
+        }
+        targetStatus = fallback;
+        setNewStatus(fallback);
+      }
       const documentFixComments = selectedIssueDocIds.map((docId) => {
         const doc = app.documents?.find((d) => d.id === docId);
         const reason = doc?.aiVerificationNotes || "Document requires correction based on officer review.";
@@ -119,7 +142,7 @@ export default function OfficerApplicationPage() {
         ...documentFixComments,
       ];
       const updated = await api.submitOfficerFeedback(id, {
-        newStatus,
+        newStatus: targetStatus,
         statusNotes: "Updated from React dashboard",
         comments: commentsPayload,
       });

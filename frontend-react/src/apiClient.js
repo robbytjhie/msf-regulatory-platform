@@ -1,3 +1,25 @@
+function toReadableMessage(rawMessage, statusCode) {
+  const m = (rawMessage || "").trim();
+  if (!m) return `Request failed (HTTP ${statusCode})`;
+  if (m.includes("Transition from")) {
+    return "Status update cannot be submitted from the current state. Please refresh and choose a valid next status.";
+  }
+  if (m.includes("Missing required document categories")) {
+    return "Some required documents are missing. Please upload all required items and try again.";
+  }
+  if (m.includes("Target document does not belong to this application")) {
+    return "One selected document could not be matched to this application. Please refresh and try again.";
+  }
+  if (m.includes("Application is not awaiting resubmission")) {
+    return "This application is currently not open for resubmission.";
+  }
+  if (statusCode === 401) return "Your session has expired. Please sign in again.";
+  if (statusCode === 403) return "You do not have permission to perform this action.";
+  if (statusCode === 404) return "The requested record was not found.";
+  if (statusCode >= 500) return "Server error occurred. Please try again in a moment.";
+  return m;
+}
+
 export async function apiRequest(path, options = {}) {
   const token = sessionStorage.getItem("token") || localStorage.getItem("token");
   const headers = {
@@ -20,7 +42,7 @@ export async function apiRequest(path, options = {}) {
     );
   }
   if (!response.ok) {
-    throw new Error(json.message || `HTTP ${response.status}`);
+    throw new Error(toReadableMessage(json.message || "", response.status));
   }
   return json.data;
 }
