@@ -54,6 +54,7 @@ export default function OperatorSubmitPage() {
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [validated, setValidated] = useState(false);
   const trackRequirements = useMemo(() => requirementsForTrack(form.licensingTrack), [form.licensingTrack]);
   const businessTypeOptions = useMemo(
     () => (form.licensingTrack ? (BUSINESS_TYPES_BY_TRACK[form.licensingTrack] || []) : []),
@@ -68,7 +69,10 @@ export default function OperatorSubmitPage() {
     [trackRequirements],
   );
 
-  const onChange = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const onChange = (k, v) => {
+    setValidated(false);
+    setForm((f) => ({ ...f, [k]: v }));
+  };
   const logout = () => {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
@@ -90,10 +94,14 @@ export default function OperatorSubmitPage() {
   const addFiles = (category, fileList) => {
     const nextItems = Array.from(fileList || []).map((file) => toDocumentItem(file, category));
     if (!nextItems.length) return;
+    setValidated(false);
     setDocuments((prev) => [...prev, ...nextItems]);
   };
 
-  const removeDocument = (id) => setDocuments((prev) => prev.filter((d) => d.id !== id));
+  const removeDocument = (id) => {
+    setValidated(false);
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
+  };
   const documentsByCategory = useMemo(() => {
     const map = new Map(trackRequirements.map((r) => [r.category, []]));
     for (const d of documents) {
@@ -102,20 +110,30 @@ export default function OperatorSubmitPage() {
     return map;
   }, [documents, trackRequirements]);
 
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!window.confirm("Confirm validation for this application?")) return;
+  const validate = () => {
     setErr("");
     setOk("");
-    setSubmitting(true);
     const submittedCategories = new Set(documents.map((d) => d.documentCategory).filter(Boolean));
     const missingRequired = requiredCategoriesForTrack(form.licensingTrack).filter((c) => !submittedCategories.has(c));
     if (missingRequired.length) {
       setErr(`Missing required documents for validation: ${missingRequired.join(", ")}`);
-      setSubmitting(false);
+      setValidated(false);
       return;
     }
+    setValidated(true);
+    setOk("Validation passed. Please click Submit Application to complete submission.");
+  };
 
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!validated) {
+      setErr("Please validate the application before submission.");
+      return;
+    }
+    if (!window.confirm("Submit this validated application now?")) return;
+    setErr("");
+    setOk("");
+    setSubmitting(true);
     try {
       const payload = {
         ...form,
@@ -129,7 +147,7 @@ export default function OperatorSubmitPage() {
         })),
       };
       const app = await api.submitApplication(payload);
-      setOk("Validation completed. Application is now routed for officer review.");
+      setOk("Application submitted successfully.");
       navigate(`/operator/applications/${app.id}`);
     } catch (error) {
       setErr(error.message);
@@ -137,6 +155,8 @@ export default function OperatorSubmitPage() {
       setSubmitting(false);
     }
   };
+
+  const uploadReady = Boolean(form.licensingTrack && form.businessType);
 
   return (
     <main className="app-shell">
@@ -189,53 +209,64 @@ export default function OperatorSubmitPage() {
           <input className="field" placeholder="Business Address" value={form.businessAddress} onChange={(e) => onChange("businessAddress", e.target.value)} required />
           <input className="field" placeholder="Contact Phone" value={form.contactPhone} onChange={(e) => onChange("contactPhone", e.target.value)} />
           <textarea className="field" placeholder="Activity Description" value={form.activityDescription} onChange={(e) => onChange("activityDescription", e.target.value)} required />
-          <div className="workflow-box" style={{ marginTop: 10 }}>
-            <p className="workflow-title">Supporting Document Upload</p>
-            <p className="workflow-line">Mandatory items are listed first. Upload files into the correct section below.</p>
-          </div>
-          {orderedRequirements.map((r) => (
-            <div
-              key={r.category}
-              className={`dropzone ${dragOverCategory === r.category ? "active" : ""}`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverCategory(r.category);
-              }}
-              onDragLeave={() => setDragOverCategory(null)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOverCategory(null);
-                addFiles(r.category, e.dataTransfer.files);
-              }}
-            >
-              <p>
-                <strong>{r.required ? "[Required]" : "[Optional]"} {r.label}</strong> ({r.category})
-              </p>
-              <p className="hint">Examples: {r.examples}</p>
-              <p className="hint">AI rule: {requirementByCategory.get(r.category)?.aiRule}</p>
-              <p className="hint">Expected file format: {EXPECTED_FORMATS_BY_CATEGORY[r.category] || "PDF, DOC, DOCX, PNG, JPG, CSV"}</p>
-              <input className="field" type="file" multiple onChange={(e) => addFiles(r.category, e.target.files)} />
-              {documentsByCategory.get(r.category)?.length ? (
-                <table style={{ marginTop: 10 }}>
-                  <thead><tr><th>File</th><th>Size (KB)</th><th>Action</th></tr></thead>
-                  <tbody>
-                    {documentsByCategory.get(r.category).map((d) => (
-                      <tr key={d.id}>
-                        <td>{d.fileName}</td>
-                        <td>{(d.fileSizeBytes / 1024).toFixed(1)}</td>
-                        <td>
-                          <button type="button" className="btn secondary" onClick={() => removeDocument(d.id)}>Remove</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : null}
-            </div>
-          ))}
-          <button className="btn" type="submit" disabled={submitting}>
-            {submitting ? "Validating..." : "Validate"}
-          </button>
+          {uploadReady ? (
+            <>
+              <div className="workflow-box" style={{ marginTop: 10 }}>
+                <p className="workflow-title">Supporting Document Upload</p>
+                <p className="workflow-line">Mandatory items are listed first. Upload files into the correct section below.</p>
+              </div>
+              {orderedRequirements.map((r) => (
+                <div
+                  key={r.category}
+                  className={`dropzone ${dragOverCategory === r.category ? "active" : ""}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverCategory(r.category);
+                  }}
+                  onDragLeave={() => setDragOverCategory(null)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOverCategory(null);
+                    addFiles(r.category, e.dataTransfer.files);
+                  }}
+                >
+                  <p>
+                    <strong>{r.required ? "[Required]" : "[Optional]"} {r.label}</strong> ({r.category})
+                  </p>
+                  <p className="hint">Examples: {r.examples}</p>
+                  <p className="hint">AI rule: {requirementByCategory.get(r.category)?.aiRule}</p>
+                  <p className="hint">Expected file format: {EXPECTED_FORMATS_BY_CATEGORY[r.category] || "PDF, DOC, DOCX, PNG, JPG, CSV"}</p>
+                  <input className="field" type="file" multiple onChange={(e) => addFiles(r.category, e.target.files)} />
+                  {documentsByCategory.get(r.category)?.length ? (
+                    <table style={{ marginTop: 10 }}>
+                      <thead><tr><th>File</th><th>Size (KB)</th><th>Action</th></tr></thead>
+                      <tbody>
+                        {documentsByCategory.get(r.category).map((d) => (
+                          <tr key={d.id}>
+                            <td>{d.fileName}</td>
+                            <td>{(d.fileSizeBytes / 1024).toFixed(1)}</td>
+                            <td>
+                              <button type="button" className="btn secondary" onClick={() => removeDocument(d.id)}>Remove</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : null}
+                </div>
+              ))}
+              <div className="top" style={{ justifyContent: "flex-start", gap: 10 }}>
+                <button type="button" className="btn secondary" onClick={validate}>
+                  Validate
+                </button>
+                <button className="btn" type="submit" disabled={submitting || !validated}>
+                  {submitting ? "Submitting..." : "Submit Application"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="hint">Select both Licensing track and Business type to start supporting document upload.</p>
+          )}
         </form>
       </section>
     </main>

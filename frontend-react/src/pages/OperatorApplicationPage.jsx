@@ -277,11 +277,9 @@ export default function OperatorApplicationPage() {
             </tbody>
           </table>
         ) : <p className="hint">No unresolved document issues at this time.</p>}
-        <h4>Resubmit Updated Fields</h4>
-        {!canResubmit ? (
-          <div className="hint">Resubmission is available only after officer returns the case for correction.</div>
-        ) : (
+        {canResubmit ? (
           <>
+            <h4>Resubmit Updated Fields</h4>
             <div className="button-grid">
               <input className="field" value={resubmit.businessName} placeholder="Business Name (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessName: e.target.value }))} />
               <input className="field" value={resubmit.businessAddress} placeholder="Business Address (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessAddress: e.target.value }))} />
@@ -297,7 +295,7 @@ export default function OperatorApplicationPage() {
               </p>
             ) : null}
           </>
-        )}
+        ) : null}
         {flagged.length ? (
           <>
             <h4>Flagged Checklist Items</h4>
