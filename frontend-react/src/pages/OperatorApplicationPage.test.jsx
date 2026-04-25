@@ -37,6 +37,7 @@ function renderPage() {
 describe("OperatorApplicationPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getOperatorApplication.mockResolvedValue({ ...baseApp, documents: [] });
     getFlaggedItems.mockResolvedValue([]);
     getOperatorDocumentStatuses.mockImplementation(() =>
       Promise.resolve([
@@ -52,7 +53,7 @@ describe("OperatorApplicationPage", () => {
   });
 
   it("shows live document poll hint while AI verification is pending", async () => {
-    getOperatorApplication.mockResolvedValueOnce({
+    getOperatorApplication.mockResolvedValue({
       ...baseApp,
       documents: [
         {
@@ -80,7 +81,7 @@ describe("OperatorApplicationPage", () => {
   });
 
   it("hides live poll hint when all documents are finished", async () => {
-    getOperatorApplication.mockResolvedValueOnce({
+    getOperatorApplication.mockResolvedValue({
       ...baseApp,
       documents: [
         {

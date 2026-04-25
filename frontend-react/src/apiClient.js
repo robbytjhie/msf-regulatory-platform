@@ -31,7 +31,7 @@ export async function apiRequest(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetch(path, { cache: "no-store", ...options, headers });
   const text = await response.text();
   let json;
   try {

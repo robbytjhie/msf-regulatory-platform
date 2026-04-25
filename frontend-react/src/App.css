@@ -47,6 +47,7 @@ body {
   box-shadow: none;
 }
 .app-shell { max-width: 980px; margin: 0 auto; padding: 24px; }
+.app-shell-wide { max-width: 1320px; }
 .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .card { padding: 16px; }
 table { width: 100%; border-collapse: collapse; }

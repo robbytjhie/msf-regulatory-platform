@@ -374,12 +374,25 @@ export default function OfficerApplicationPage() {
           <p className="hint">No documents are attached to this application in the system.</p>
         )}
 
-        {app.officerComments?.length ? (
-          <>
-            <h4>Prior officer comments</h4>
-            {app.officerComments.map((c) => <p key={c.id}>- {c.commentText}</p>)}
-          </>
-        ) : null}
+        <h4>Checklist Details</h4>
+        {checklistEnabled ? (
+          <div className="workflow-box">
+            <p className="workflow-line">
+              Checklist is available for this case. Open the checklist page to view all items, officer responses, and clarification status.
+            </p>
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => navigate(`/officer/applications/${id}/checklist`)}
+            >
+              Open Detailed Checklist
+            </button>
+          </div>
+        ) : (
+          <p className="hint">
+            Checklist details will appear after status reaches <code>SITE_VISIT_SCHEDULED</code> or later.
+          </p>
+        )}
 
         <div className="workflow-box">
           <p className="workflow-title">Status Workflow Reference (Officer)</p>

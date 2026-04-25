@@ -65,6 +65,7 @@ export default function OperatorApplicationPage() {
         // Keep current view while waiting for next poll.
       }
     };
+    poll();
     const timer = window.setInterval(poll, 2000);
     return () => window.clearInterval(timer);
   }, [id, resubmitInitialized]);
@@ -194,7 +195,7 @@ export default function OperatorApplicationPage() {
   const validatedIssueCount = issueDocuments.filter((d) => d.aiVerificationStatus === "PASSED").length;
 
   return (
-    <main className="app-shell">
+    <main className="app-shell app-shell-wide">
       <header className="top">
         <h2>{app.businessName}</h2>
         <div className="top">
@@ -277,7 +278,7 @@ export default function OperatorApplicationPage() {
           </p>
         ) : null}
         {issueDocuments.length ? (
-          <div style={{ width: "100%", maxWidth: "115%", overflowX: "auto" }}>
+          <div style={{ width: "100%", overflowX: "auto" }}>
             <table style={{ tableLayout: "fixed", width: "100%", minWidth: 980 }}>
               <thead><tr><th style={{ width: "30%" }}>File</th><th style={{ width: "20%" }}>AI Verification</th><th style={{ width: "30%" }}>Notes</th><th style={{ width: "20%" }}>Action</th></tr></thead>
             <tbody>
