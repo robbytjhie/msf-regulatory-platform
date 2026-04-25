@@ -50,24 +50,17 @@ Open `http://localhost:3000`.
 
 ## Minikube Deploy
 
+**Full step-by-step guide** (first-time setup, pull/rebuild, pods, logs, troubleshooting, cluster reset): **`docs/MINIKUBE.md`**.
+
+Quick path (Windows PowerShell):
+
 ```powershell
 cd infra/k8s
 ./deploy-minikube.ps1
 minikube service frontend-react -n msf --url
 ```
 
-For first-time local Minikube use:
-1. Start Docker Desktop (Windows) or Docker daemon (Ubuntu).
-2. Start Minikube:
-   - `minikube start --driver=docker`
-3. Build images into Minikube Docker:
-   - `minikube -p minikube docker-env --shell powershell | Invoke-Expression` (Windows PowerShell)
-   - `eval "$(minikube -p minikube docker-env)"` (Ubuntu bash)
-4. Build and deploy:
-   - `docker build -t msf/backend:latest ./backend`
-   - `docker build -t msf/auth-node:latest ./auth-node`
-   - `docker build -t msf/frontend-react:latest ./frontend-react`
-   - `kubectl apply -f infra/k8s/msf.yaml`
+On **Linux / WSL**, use `eval "$(minikube -p minikube docker-env)"` before `docker build`, then `kubectl apply -f infra/k8s/msf.yaml` — see **`docs/MINIKUBE.md`** for the complete bash flow.
 
 ---
 
