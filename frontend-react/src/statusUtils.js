@@ -29,7 +29,7 @@ export function pendingOwnerByInternalStatus(internalStatus) {
 }
 
 export function pendingOwnerByStatusLabel(statusLabel) {
-  if (statusLabel === "Pending Pre-Site Resubmission" || statusLabel === "Awaiting Post-Site Resubmission") {
+  if (statusLabel === "Pending Pre-Site Resubmission" || statusLabel === "Pending Post-Site Resubmission") {
     return "Pending Your Action";
   }
   if (statusLabel === "Approved" || statusLabel === "Rejected") return statusLabel;

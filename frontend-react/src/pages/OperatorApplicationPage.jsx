@@ -24,19 +24,45 @@ export default function OperatorApplicationPage() {
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [replacementFiles, setReplacementFiles] = useState({});
   const [validatingDocId, setValidatingDocId] = useState(null);
+  const [resubmitInitialized, setResubmitInitialized] = useState(false);
 
-  useEffect(() => {
-    api.getOperatorApplication(id).then((data) => {
-      setApp(data);
+  const hydrateApplication = (data, initializeResubmit) => {
+    setApp(data);
+    if (initializeResubmit && !resubmitInitialized) {
       setResubmit({
         businessName: data.businessName || "",
         businessAddress: data.businessAddress || "",
         contactPhone: data.contactPhone || "",
         activityDescription: data.activityDescription || "",
       });
-    }).catch((e) => setErr(e.message));
+      setResubmitInitialized(true);
+    }
+  };
+
+  useEffect(() => {
+    api.getOperatorApplication(id)
+      .then((data) => hydrateApplication(data, true))
+      .catch((e) => setErr(e.message));
     api.getFlaggedItems(id).then(setFlagged).catch(() => {});
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    const poll = async () => {
+      try {
+        const [freshApp, freshFlagged] = await Promise.all([
+          api.getOperatorApplication(id),
+          api.getFlaggedItems(id).catch(() => []),
+        ]);
+        hydrateApplication(freshApp, false);
+        setFlagged(freshFlagged);
+      } catch {
+        // Keep current view while waiting for next poll.
+      }
+    };
+    const timer = window.setInterval(poll, 2000);
+    return () => window.clearInterval(timer);
+  }, [id, resubmitInitialized]);
 
   useEffect(() => {
     if (!app?.documents?.length) {
@@ -145,7 +171,7 @@ export default function OperatorApplicationPage() {
 
   if (!app) return <main className="app-shell">{err ? <p className="error">{err}</p> : <p>Loading...</p>}</main>;
 
-  const canResubmit = app.statusLabel === "Pending Pre-Site Resubmission" || app.statusLabel === "Awaiting Post-Site Resubmission";
+  const canResubmit = app.statusLabel === "Pending Pre-Site Resubmission" || app.statusLabel === "Pending Post-Site Resubmission";
   const unresolvedIssueDocIds = new Set(
     (app.officerComments || [])
       .filter((c) => c.targetDocumentId && c.resolved === false)
@@ -189,12 +215,6 @@ export default function OperatorApplicationPage() {
                 ))}
               </tbody>
             </table>
-          </>
-        ) : null}
-        {app.officerComments?.length ? (
-          <>
-            <h4>Officer Feedback</h4>
-            {app.officerComments.map((c) => <p key={c.id}>- {c.commentText}</p>)}
           </>
         ) : null}
         {app.documents?.length ? (
@@ -298,28 +318,38 @@ export default function OperatorApplicationPage() {
             ) : null}
           </>
         ) : null}
-        {flagged.length ? (
+        {(() => {
+          const checklistCreated = (app.statusHistory || []).some((h) => h.toStatusLabel === "Site Visit Scheduled" || h.toStatusLabel === "Site Visit Done")
+            || ["Pending Site Visit", "Site Visit Done", "Pending Post-Site Clarification", "Pending Post-Site Resubmission", "Post-Site Resubmitted", "Pending Approval", "Approved", "Rejected"].includes(app.statusLabel);
+          if (!checklistCreated) return null;
+          return (
           <>
-            <h4>Flagged Checklist Items</h4>
-            <table>
-              <thead><tr><th>Code</th><th>Title</th><th>Comment</th><th>Action</th></tr></thead>
-              <tbody>
-                {flagged.map((f) => (
-                  <tr key={f.id}>
-                    <td>{f.itemCode}</td>
-                    <td>{f.itemTitle}</td>
-                    <td>{f.officerComment}</td>
-                    <td>
-                      <button className="btn secondary" disabled={respondingId === f.id} onClick={() => respond(f.id)}>
-                        {respondingId === f.id ? "Submitting..." : "Respond"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <h4>Checklist Details</h4>
+            {flagged.length ? (
+              <table>
+                <thead><tr><th>Code</th><th>Checklist Item</th><th>Officer Request</th><th>Latest Response</th><th>Action</th></tr></thead>
+                <tbody>
+                  {flagged.map((f) => (
+                    <tr key={f.id}>
+                      <td>{f.itemCode}</td>
+                      <td>{f.itemTitle}</td>
+                      <td>{f.officerComment || "—"}</td>
+                      <td>{f.operatorResponse || f.clarificationThreads?.[f.clarificationThreads.length - 1]?.message || "Awaiting operator response"}</td>
+                      <td>
+                        <button className="btn secondary" disabled={respondingId === f.id} onClick={() => respond(f.id)}>
+                          {respondingId === f.id ? "Submitting..." : "Respond"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="hint">Checklist has been created. No clarification response is required right now.</p>
+            )}
           </>
-        ) : null}
+          );
+        })()}
       </section>
     </main>
   );

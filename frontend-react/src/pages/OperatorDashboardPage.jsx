@@ -7,7 +7,7 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 const RESUBMIT_STATUSES = new Set([
   "Pending Pre-Site Resubmission",
-  "Awaiting Post-Site Resubmission",
+  "Pending Post-Site Resubmission",
 ]);
 
 export default function OperatorDashboardPage() {
