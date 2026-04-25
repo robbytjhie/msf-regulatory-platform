@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -134,6 +135,124 @@ class NotificationServiceImplTest {
         assertTrue(captor.getValue().getSubject().contains("Application approved"));
         assertTrue(captor.getValue().getText().contains("has been Approved"));
         assertTrue(captor.getValue().getText().contains("Regards,\nMSF Representative"));
+    }
+
+    @Test
+    void create_pendingApprovalStatusUsesFinalReviewTemplate() {
+        User recipient = User.builder()
+                .email("operator@test.com")
+                .role(UserRole.OPERATOR)
+                .fullName("Operator")
+                .password("encoded")
+                .build();
+        Application app = Application.builder()
+                .id(104L)
+                .referenceNumber("TEST-104")
+                .status(ApplicationStatus.PENDING_APPROVAL)
+                .businessName("Biz")
+                .operator(recipient)
+                .build();
+
+        notificationService.create(recipient, app, NotificationType.STATUS_CHANGE, "Pending approval");
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertTrue(captor.getValue().getSubject().contains("final review"));
+        assertTrue(captor.getValue().getText().contains("Pending Approval"));
+    }
+
+    @Test
+    void create_rejectedStatusUsesRejectedTemplate() {
+        User recipient = User.builder()
+                .email("operator@test.com")
+                .role(UserRole.OPERATOR)
+                .fullName("Operator")
+                .password("encoded")
+                .build();
+        Application app = Application.builder()
+                .id(105L)
+                .referenceNumber("TEST-105")
+                .status(ApplicationStatus.REJECTED)
+                .businessName("Biz")
+                .operator(recipient)
+                .build();
+
+        notificationService.create(recipient, app, NotificationType.STATUS_CHANGE, "Rejected");
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertTrue(captor.getValue().getSubject().contains("Rejected"));
+        assertTrue(captor.getValue().getText().contains("has been Rejected"));
+    }
+
+    @Test
+    void create_nonStatusChangeUsesGenericTemplate() {
+        User recipient = User.builder()
+                .email("operator@test.com")
+                .role(UserRole.OPERATOR)
+                .fullName("Operator")
+                .password("encoded")
+                .build();
+        Application app = Application.builder()
+                .id(106L)
+                .referenceNumber("TEST-106")
+                .status(ApplicationStatus.UNDER_REVIEW)
+                .businessName("Biz")
+                .operator(recipient)
+                .build();
+
+        notificationService.create(recipient, app, NotificationType.CHECKLIST_RESPONSE, "Checklist responded");
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertTrue(captor.getValue().getSubject().contains("CHECKLIST_RESPONSE"));
+        assertTrue(captor.getValue().getText().contains("Notification Type: CHECKLIST_RESPONSE"));
+    }
+
+    @Test
+    void create_adminRoleFallsBackToRecipientEmail() {
+        User recipient = User.builder()
+                .email("admin@test.com")
+                .role(UserRole.ADMIN)
+                .fullName("Admin")
+                .password("encoded")
+                .build();
+        Application app = Application.builder()
+                .id(107L)
+                .referenceNumber("TEST-107")
+                .status(ApplicationStatus.UNDER_REVIEW)
+                .businessName("Biz")
+                .operator(recipient)
+                .build();
+
+        notificationService.create(recipient, app, NotificationType.STATUS_CHANGE, "Status updated");
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertEquals("admin@test.com", captor.getValue().getTo()[0]);
+    }
+
+    @Test
+    void subscribe_returnsEmitterAndCreatePushPathDoesNotFail() {
+        User recipient = User.builder()
+                .id(300L)
+                .email("operator@test.com")
+                .role(UserRole.OPERATOR)
+                .fullName("Operator")
+                .password("encoded")
+                .build();
+        Application app = Application.builder()
+                .id(108L)
+                .referenceNumber("TEST-108")
+                .status(ApplicationStatus.UNDER_REVIEW)
+                .businessName("Biz")
+                .operator(recipient)
+                .build();
+
+        SseEmitter emitter = notificationService.subscribe(recipient);
+        assertNotNull(emitter);
+        assertDoesNotThrow(() ->
+                notificationService.create(recipient, app, NotificationType.STATUS_CHANGE, "Status updated"));
     }
 
     @Test
