@@ -54,7 +54,6 @@ export default function OperatorSubmitPage() {
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [validated, setValidated] = useState(false);
   const trackRequirements = useMemo(() => requirementsForTrack(form.licensingTrack), [form.licensingTrack]);
   const businessTypeOptions = useMemo(
     () => (form.licensingTrack ? (BUSINESS_TYPES_BY_TRACK[form.licensingTrack] || []) : []),
@@ -69,10 +68,7 @@ export default function OperatorSubmitPage() {
     [trackRequirements],
   );
 
-  const onChange = (k, v) => {
-    setValidated(false);
-    setForm((f) => ({ ...f, [k]: v }));
-  };
+  const onChange = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const logout = () => {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
@@ -94,14 +90,10 @@ export default function OperatorSubmitPage() {
   const addFiles = (category, fileList) => {
     const nextItems = Array.from(fileList || []).map((file) => toDocumentItem(file, category));
     if (!nextItems.length) return;
-    setValidated(false);
     setDocuments((prev) => [...prev, ...nextItems]);
   };
 
-  const removeDocument = (id) => {
-    setValidated(false);
-    setDocuments((prev) => prev.filter((d) => d.id !== id));
-  };
+  const removeDocument = (id) => setDocuments((prev) => prev.filter((d) => d.id !== id));
   const documentsByCategory = useMemo(() => {
     const map = new Map(trackRequirements.map((r) => [r.category, []]));
     for (const d of documents) {
@@ -110,30 +102,19 @@ export default function OperatorSubmitPage() {
     return map;
   }, [documents, trackRequirements]);
 
-  const validate = () => {
-    setErr("");
-    setOk("");
-    const submittedCategories = new Set(documents.map((d) => d.documentCategory).filter(Boolean));
-    const missingRequired = requiredCategoriesForTrack(form.licensingTrack).filter((c) => !submittedCategories.has(c));
-    if (missingRequired.length) {
-      setErr(`Missing required documents for validation: ${missingRequired.join(", ")}`);
-      setValidated(false);
-      return;
-    }
-    setValidated(true);
-    setOk("Validation passed. Please click Submit Application to complete submission.");
-  };
-
   const submit = async (e) => {
     e.preventDefault();
-    if (!validated) {
-      setErr("Please validate the application before submission.");
-      return;
-    }
-    if (!window.confirm("Submit this validated application now?")) return;
+    if (!window.confirm("Submit this application now?")) return;
     setErr("");
     setOk("");
     setSubmitting(true);
+    const submittedCategories = new Set(documents.map((d) => d.documentCategory).filter(Boolean));
+    const missingRequired = requiredCategoriesForTrack(form.licensingTrack).filter((c) => !submittedCategories.has(c));
+    if (missingRequired.length) {
+      setErr(`Missing required documents: ${missingRequired.join(", ")}`);
+      setSubmitting(false);
+      return;
+    }
     try {
       const payload = {
         ...form,
@@ -256,10 +237,7 @@ export default function OperatorSubmitPage() {
                 </div>
               ))}
               <div className="top" style={{ justifyContent: "flex-start", gap: 10 }}>
-                <button type="button" className="btn secondary" onClick={validate}>
-                  Validate
-                </button>
-                <button className="btn" type="submit" disabled={submitting || !validated}>
+                <button className="btn" type="submit" disabled={submitting}>
                   {submitting ? "Submitting..." : "Submit Application"}
                 </button>
               </div>

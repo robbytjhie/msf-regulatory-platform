@@ -56,6 +56,17 @@ function formatTs(value) {
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
 }
 
+function simulatedDocumentPreviewUrl(doc) {
+  const content = [
+    "Simulated document preview",
+    `File: ${doc?.originalFileName || "-"}`,
+    `Category: ${doc?.documentCategory || "-"}`,
+    `AI Status: ${doc?.aiVerificationStatus || "PENDING"}`,
+    `AI Notes: ${doc?.aiVerificationNotes || "-"}`,
+  ].join("\n");
+  return `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`;
+}
+
 export default function OfficerApplicationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -307,7 +318,16 @@ export default function OfficerApplicationPage() {
                 {app.documents.map((d, idx) => (
                   <tr key={d.id}>
                     <td>{idx + 1}</td>
-                    <td>{d.originalFileName}</td>
+                    <td>
+                      <a
+                        href={simulatedDocumentPreviewUrl(d)}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Open document preview"
+                      >
+                        {d.originalFileName}
+                      </a>
+                    </td>
                     <td>{d.documentCategory || "—"}</td>
                     <td>
                       <span className={`badge ${docAiBadgeClass(d.aiVerificationStatus)}`}>

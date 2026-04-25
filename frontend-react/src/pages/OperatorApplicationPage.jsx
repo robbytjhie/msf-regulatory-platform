@@ -237,13 +237,15 @@ export default function OperatorApplicationPage() {
         ) : null}
         {issueDocuments.length ? (
           <table style={{ tableLayout: "fixed" }}>
-            <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th><th>Action</th></tr></thead>
+            <thead><tr><th>File</th><th>AI Verification</th><th>Notes</th><th>Action</th></tr></thead>
             <tbody>
               {issueDocuments.map((d) => (
                 <tr key={`issue-${d.id}`}>
                   <td>{d.originalFileName}</td>
-                  <td>{d.documentCategory || "-"}</td>
                   <td>
+                    <div className="hint" style={{ marginBottom: 4 }}>
+                      {d.documentCategory || "-"}
+                    </div>
                     <span className={`badge ${d.aiVerificationStatus === "PASSED" ? "badge-green" : d.aiVerificationStatus === "FLAGGED" ? "badge-red" : "badge-amber"}`}>
                       {d.aiVerificationStatus || "PENDING"}
                     </span>
