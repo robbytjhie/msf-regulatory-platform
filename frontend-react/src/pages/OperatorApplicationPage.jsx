@@ -156,6 +156,7 @@ export default function OperatorApplicationPage() {
   );
   const allIssueDocsValidated = issueDocuments.every((d) => d.aiVerificationStatus === "PASSED");
   const canSubmitResubmission = canResubmit && allIssueDocsValidated;
+  const validatedIssueCount = issueDocuments.filter((d) => d.aiVerificationStatus === "PASSED").length;
 
   return (
     <main className="app-shell">
@@ -229,6 +230,11 @@ export default function OperatorApplicationPage() {
           </>
         ) : null}
         <h4>Documents Requiring Fix</h4>
+        {issueDocuments.length ? (
+          <p className="hint">
+            Validation progress: {validatedIssueCount}/{issueDocuments.length} issue document(s) passed.
+          </p>
+        ) : null}
         {issueDocuments.length ? (
           <table>
             <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th><th>Replace File</th><th>Validate</th></tr></thead>
