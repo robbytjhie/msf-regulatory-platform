@@ -33,6 +33,7 @@ public class DocumentVerificationService {
             markAllAsManualReviewRequired(applicationId);
             return;
         }
+        // Two-phase update (PROCESSING -> FINAL) gives frontend deterministic progress states for polling.
         // Allow submit transaction to complete before reading.
         sleep(1200);
         List<Document> docs = documentRepository.findByApplicationIdOrderByCreatedAtDesc(applicationId);

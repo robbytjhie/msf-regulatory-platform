@@ -62,6 +62,7 @@ public class ChecklistServiceImpl implements ChecklistService {
         Application app = findApplicationOrThrow(applicationId);
         assertChecklistEditable(app);
 
+        // Persist officer updates first, then decide the next workflow state from aggregate checklist outcome.
         applyChecklistUpdates(applicationId, request, false);
         List<ChecklistItem> submittedItems = checklistItemRepository.findByApplicationIdOrderBySortOrderAsc(applicationId);
         boolean hasPendingItems = submittedItems.stream()
@@ -195,6 +196,7 @@ public class ChecklistServiceImpl implements ChecklistService {
 
     private void assertChecklistEditable(Application app) {
         ApplicationStatus s = app.getStatus();
+        // "Ball with officer" states only: operator-waiting statuses are intentionally read-only.
         boolean editable = s == ApplicationStatus.SITE_VISIT_SCHEDULED
                 || s == ApplicationStatus.SITE_VISIT_DONE
                 || s == ApplicationStatus.AWAITING_POST_SITE_CLARIFICATION

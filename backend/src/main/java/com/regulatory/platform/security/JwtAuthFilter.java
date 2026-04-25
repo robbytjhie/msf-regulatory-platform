@@ -41,6 +41,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             userEmail = jwtService.extractUsername(jwt);
         } catch (Exception e) {
+            // Invalid token format/signature -> continue chain unauthenticated (Spring will enforce endpoint access).
             filterChain.doFilter(request, response);
             return;
         }

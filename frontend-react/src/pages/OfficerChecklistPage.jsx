@@ -13,6 +13,8 @@ export default function OfficerChecklistPage() {
   const [applicationInternalStatus, setApplicationInternalStatus] = useState("");
 
   useEffect(() => {
+    // Read checklist items and parent application state together because
+    // checklist editability depends on both item resolution and current workflow owner.
     Promise.all([
       api.getChecklist(id),
       api.getOfficerApplication(id),

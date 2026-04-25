@@ -81,6 +81,7 @@ function formatTs(value) {
 }
 
 function buildDocumentReturnState(data) {
+  // Preserve unresolved per-document comments so officer checkboxes/comments survive polling.
   const unresolvedCommentByDocId = new Map();
   (data?.officerComments || [])
     .filter((c) => c.targetDocumentId && c.resolved === false)
@@ -212,6 +213,7 @@ export default function OfficerApplicationPage() {
         targetStatus = fallback;
         setNewStatus(fallback);
       }
+      // Build targeted document comments so operator sees actionable fixes per file.
       const selectedReturnDocuments = canReturnDocuments
         ? (app.documents || []).filter((doc) => documentReturnState[doc.id]?.checked)
         : [];

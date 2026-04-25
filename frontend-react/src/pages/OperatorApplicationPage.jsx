@@ -31,6 +31,8 @@ export default function OperatorApplicationPage() {
   const [validatingDocId, setValidatingDocId] = useState(null);
   const [resubmitInitialized, setResubmitInitialized] = useState(false);
 
+  // Hydrates API data and pre-fills resubmission fields exactly once so polling
+  // does not overwrite operator edits in progress.
   const hydrateApplication = (data, initializeResubmit) => {
     setApp(data);
     if (initializeResubmit && !resubmitInitialized) {
@@ -53,6 +55,7 @@ export default function OperatorApplicationPage() {
 
   useEffect(() => {
     if (!id) return;
+    // Poll both app detail + checklist clarifications for near-real-time two-party workflow.
     const poll = async () => {
       try {
         const [freshApp, freshFlagged] = await Promise.all([
@@ -83,6 +86,7 @@ export default function OperatorApplicationPage() {
 
   useEffect(() => {
     if (!docPollActive || !id) return;
+    // Document polling is isolated to AI processing statuses to reduce unnecessary network calls.
     const run = async () => {
       try {
         const docs = await api.getOperatorDocumentStatuses(id);

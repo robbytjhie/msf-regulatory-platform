@@ -82,6 +82,7 @@ public class StatusTransitionService {
      * Throws {@link InvalidStatusTransitionException} if not permitted.
      */
     public void validate(ApplicationStatus from, ApplicationStatus to, UserRole actorRole) {
+        // Central guardrail used by both API and service flows to avoid UI/backend divergence.
         Set<ApplicationStatus> allowed = VALID_TRANSITIONS.getOrDefault(from, Set.of());
 
         if (!allowed.contains(to)) {

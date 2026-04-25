@@ -55,6 +55,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Override
     public ApplicationDetailResponse submit(ApplicationSubmitRequest request, User operator) {
+        // Hard-stop early so we never create an application record with missing mandatory categories.
         validateRequiredDocuments(request);
         String refNum = generateReferenceNumber();
 
@@ -90,6 +91,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 application.getDocuments().add(doc);
             }
             application = applicationRepository.save(application);
+            // Keep submission flowing even when AI is down by moving case to manual officer validation.
             if (documentVerificationService.isAiVerificationEnabled()) {
                 documentVerificationService.startSimulatedVerification(application.getId());
             } else {
@@ -251,6 +253,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         statusTransitionService.validate(application.getStatus(), targetStatus, UserRole.OFFICER);
 
         if (request.comments() != null) {
+            // Comments can be global or attached to a specific document; we enforce ownership here.
             request.comments().forEach(commentReq -> {
                 Document targetDocument = null;
                 if (commentReq.targetDocumentId() != null) {

@@ -24,6 +24,7 @@ function toReadableMessage(rawMessage, statusCode) {
 }
 
 export async function apiRequest(path, options = {}) {
+  // sessionStorage is preferred to isolate auth per browser tab.
   const token = sessionStorage.getItem("token") || localStorage.getItem("token");
   const headers = {
     "Content-Type": "application/json",
@@ -31,6 +32,7 @@ export async function apiRequest(path, options = {}) {
     ...(options.headers || {}),
   };
 
+  // no-store avoids stale dashboard/detail data when both roles are open side-by-side.
   const response = await fetch(path, { cache: "no-store", ...options, headers });
   const text = await response.text();
   let json;

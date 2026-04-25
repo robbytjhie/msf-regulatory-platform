@@ -47,6 +47,7 @@ public class ExternalDocumentAiAnalysisService {
     private String huggingFaceModel;
 
     public Optional<DocumentAiAnalysisResult> analyze(Document doc) {
+        // Provider order favors cheapest reliable path; deterministic local fallback guarantees reason text.
         if (groqApiKey != null && !groqApiKey.isBlank()) {
             Optional<DocumentAiAnalysisResult> r = tryGroq(doc);
             if (r.isPresent()) {

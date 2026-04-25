@@ -8,6 +8,7 @@ import OfficerApplicationPage from "./pages/OfficerApplicationPage";
 import OfficerChecklistPage from "./pages/OfficerChecklistPage";
 
 function Guard({ role, children }) {
+  // Keep auth checks in one place so route-level role enforcement is consistent.
   const token = sessionStorage.getItem("token") || localStorage.getItem("token");
   const userRaw = sessionStorage.getItem("user") || localStorage.getItem("user") || "null";
   const user = JSON.parse(userRaw);
