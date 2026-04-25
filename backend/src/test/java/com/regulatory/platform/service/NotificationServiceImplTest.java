@@ -15,6 +15,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 
 import java.util.List;
 
@@ -26,6 +28,8 @@ class NotificationServiceImplTest {
 
     @Mock
     private NotificationRepository notificationRepository;
+    @Mock
+    private JavaMailSender mailSender;
 
     @InjectMocks
     private NotificationServiceImpl notificationService;
@@ -58,6 +62,100 @@ class NotificationServiceImplTest {
         assertEquals(NotificationType.STATUS_CHANGE, saved.getType());
         assertEquals("Status updated", saved.getMessage());
         assertFalse(saved.isRead());
+        verify(mailSender).send(any(SimpleMailMessage.class));
+    }
+
+    @Test
+    void create_officerRoutesToHardcodedOfficerEmail() {
+        User recipient = User.builder()
+                .email("officer@test.gov.sg")
+                .role(UserRole.OFFICER)
+                .fullName("Officer")
+                .password("encoded")
+                .build();
+        Application app = Application.builder()
+                .id(100L)
+                .referenceNumber("TEST-100")
+                .status(ApplicationStatus.UNDER_REVIEW)
+                .businessName("Biz")
+                .operator(recipient)
+                .build();
+
+        notificationService.create(recipient, app, NotificationType.STATUS_CHANGE, "Status updated");
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertEquals("robby.tjhie@gmail.com", captor.getValue().getTo()[0]);
+    }
+
+    @Test
+    void create_operatorRoutesToHardcodedOperatorEmail() {
+        User recipient = User.builder()
+                .email("operator@test.com")
+                .role(UserRole.OPERATOR)
+                .fullName("Operator")
+                .password("encoded")
+                .build();
+        Application app = Application.builder()
+                .id(101L)
+                .referenceNumber("TEST-101")
+                .status(ApplicationStatus.UNDER_REVIEW)
+                .businessName("Biz")
+                .operator(recipient)
+                .build();
+
+        notificationService.create(recipient, app, NotificationType.STATUS_CHANGE, "Status updated");
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertEquals("robby.tjhie08@gmail.com", captor.getValue().getTo()[0]);
+    }
+
+    @Test
+    void create_approvedStatusUsesApprovedTemplate() {
+        User recipient = User.builder()
+                .email("operator@test.com")
+                .role(UserRole.OPERATOR)
+                .fullName("Operator")
+                .password("encoded")
+                .build();
+        Application app = Application.builder()
+                .id(103L)
+                .referenceNumber("TEST-103")
+                .status(ApplicationStatus.APPROVED)
+                .businessName("Sunshine Nursing Home")
+                .operator(recipient)
+                .build();
+
+        notificationService.create(recipient, app, NotificationType.STATUS_CHANGE, "Approved");
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertTrue(captor.getValue().getSubject().contains("Application approved"));
+        assertTrue(captor.getValue().getText().contains("has been Approved"));
+    }
+
+    @Test
+    void create_emailFailureDoesNotBreakDbNotification() {
+        User recipient = User.builder()
+                .email("operator@test.com")
+                .role(UserRole.OPERATOR)
+                .fullName("Operator")
+                .password("encoded")
+                .build();
+        Application app = Application.builder()
+                .id(102L)
+                .referenceNumber("TEST-102")
+                .status(ApplicationStatus.UNDER_REVIEW)
+                .businessName("Biz")
+                .operator(recipient)
+                .build();
+
+        doThrow(new RuntimeException("smtp down")).when(mailSender).send(any(SimpleMailMessage.class));
+
+        assertDoesNotThrow(() ->
+                notificationService.create(recipient, app, NotificationType.STATUS_CHANGE, "Status updated"));
+        verify(notificationRepository).save(any(Notification.class));
     }
 
     @Test
