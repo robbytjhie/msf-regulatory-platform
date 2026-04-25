@@ -65,7 +65,7 @@ public class NotificationServiceImpl implements NotificationService {
         SimpleMailMessage email = new SimpleMailMessage();
         email.setTo(targetEmail);
         email.setSubject(content.subject());
-        email.setText(content.body());
+        email.setText(withSignature(content.body()));
         try {
             mailSender.send(email);
             log.info("Email notification sent to {} for application {}", targetEmail, application.getReferenceNumber());
@@ -210,6 +210,16 @@ public class NotificationServiceImpl implements NotificationService {
                         %s
                         """.formatted(operatorName, referenceNumber, message == null ? "" : message)
         );
+    }
+
+    private String withSignature(String body) {
+        return body + """
+
+                Thank you.
+
+                Regards,
+                MSF Representative
+                """;
     }
 
     private record EmailContent(String subject, String body) {}

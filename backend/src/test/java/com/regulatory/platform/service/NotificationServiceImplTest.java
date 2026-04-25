@@ -133,6 +133,7 @@ class NotificationServiceImplTest {
         verify(mailSender).send(captor.capture());
         assertTrue(captor.getValue().getSubject().contains("Application approved"));
         assertTrue(captor.getValue().getText().contains("has been Approved"));
+        assertTrue(captor.getValue().getText().contains("Regards,\nMSF Representative"));
     }
 
     @Test
