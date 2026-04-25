@@ -300,6 +300,9 @@ export default function OfficerApplicationPage() {
             <div className="workflow-box">
               <p className="workflow-title">AI document verification (for officers)</p>
               <p className="workflow-line">
+                <strong>Decision authority:</strong> AI is advisory only; officer review determines final outcome.
+              </p>
+              <p className="workflow-line">
                 <strong>PENDING / PROCESSING</strong> — not finished yet; refresh or wait for live updates.
               </p>
               <p className="workflow-line">

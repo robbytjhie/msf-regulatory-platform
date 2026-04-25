@@ -230,6 +230,18 @@ export default function OperatorApplicationPage() {
                 </p>
               ) : null}
             </div>
+            <div className="workflow-box">
+              <p className="workflow-title">AI document validation (for operators)</p>
+              <p className="workflow-line">
+                <strong>PASSED</strong> — automated checks did not detect obvious metadata issues.
+              </p>
+              <p className="workflow-line">
+                <strong>FLAGGED / FAILED</strong> — review the notes, replace affected files, then validate again.
+              </p>
+              <p className="workflow-line">
+                <strong>Important:</strong> AI feedback is advisory. Final approval/return decisions are made by the officer.
+              </p>
+            </div>
             <table>
               <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th></tr></thead>
               <tbody>
