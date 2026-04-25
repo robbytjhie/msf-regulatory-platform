@@ -8,10 +8,12 @@ import com.regulatory.platform.dto.response.ApplicationSummaryResponse;
 import com.regulatory.platform.dto.response.DocumentResponse;
 import com.regulatory.platform.entity.*;
 import com.regulatory.platform.enums.ApplicationStatus;
+import com.regulatory.platform.enums.ChecklistItemStatus;
 import com.regulatory.platform.enums.NotificationType;
 import com.regulatory.platform.enums.UserRole;
 import com.regulatory.platform.exception.ApplicationNotFoundException;
 import com.regulatory.platform.exception.ForbiddenOperationException;
+import com.regulatory.platform.exception.InvalidRequestException;
 import com.regulatory.platform.exception.InvalidStatusTransitionException;
 import com.regulatory.platform.repository.*;
 import com.regulatory.platform.service.ApplicationService;
@@ -25,7 +27,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -33,6 +37,9 @@ import java.util.UUID;
 @Slf4j
 @Transactional
 public class ApplicationServiceImpl implements ApplicationService {
+    private static final Set<String> REQUIRED_DOC_CATEGORIES = Set.of(
+            "REGISTRATION_DOC"
+    );
 
     private final ApplicationRepository applicationRepository;
     private final StatusHistoryRepository statusHistoryRepository;
@@ -40,11 +47,13 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final StatusTransitionService statusTransitionService;
     private final NotificationService notificationService;
     private final DocumentVerificationService documentVerificationService;
+    private final ChecklistItemRepository checklistItemRepository;
 
     // ── UC1: Operator Submission ──────────────────────────────────
 
     @Override
     public ApplicationDetailResponse submit(ApplicationSubmitRequest request, User operator) {
+        validateRequiredDocuments(request);
         String refNum = generateReferenceNumber();
 
         Application application = Application.builder()
@@ -219,6 +228,10 @@ public class ApplicationServiceImpl implements ApplicationService {
         applicationRepository.save(application);
         recordStatusHistory(application, previousStatus, targetStatus, officer, request.statusNotes());
 
+        if (targetStatus == ApplicationStatus.SITE_VISIT_SCHEDULED) {
+            seedDefaultSiteVisitChecklistIfEmpty(application);
+        }
+
         log.info("Officer {} set application {} status to {}",
                 officer.getEmail(), application.getReferenceNumber(), targetStatus);
 
@@ -273,6 +286,76 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (!application.getOperator().getId().equals(operator.getId())) {
             throw new ForbiddenOperationException("You do not have access to this application");
         }
+    }
+
+    private void validateRequiredDocuments(ApplicationSubmitRequest request) {
+        if (request.documents() == null || request.documents().isEmpty()) {
+            throw new InvalidRequestException("Please upload required document category: REGISTRATION_DOC");
+        }
+        Set<String> submitted = request.documents().stream()
+                .map(ApplicationSubmitRequest.DocumentUploadRequest::documentCategory)
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::trim)
+                .map(String::toUpperCase)
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> missing = new LinkedHashSet<>(REQUIRED_DOC_CATEGORIES);
+        missing.removeAll(submitted);
+        if (!missing.isEmpty()) {
+            throw new InvalidRequestException("Missing required document categories: " + String.join(", ", missing));
+        }
+    }
+
+    /**
+     * When a site visit is scheduled, ensure officers have starter checklist rows (demo / MVP template).
+     * Replace or extend with configurable templates in a full product.
+     */
+    private void seedDefaultSiteVisitChecklistIfEmpty(Application application) {
+        if (!checklistItemRepository.findByApplicationIdOrderBySortOrderAsc(application.getId()).isEmpty()) {
+            return;
+        }
+        checklistItemRepository.saveAll(List.of(
+                ChecklistItem.builder().application(application).itemCode("SITE_01")
+                        .itemTitle("Site access and safety briefing").sortOrder(1)
+                        .itemDescription("Confirm access arrangements, PPE, and emergency procedures with the operator.")
+                        .status(ChecklistItemStatus.PENDING).build(),
+                ChecklistItem.builder().application(application).itemCode("SITE_02")
+                        .itemTitle("ECDC: Spatial capacity and play-space adequacy").sortOrder(2)
+                        .itemDescription("Verify indoor/outdoor activity space and child-capacity fit (e.g., minimum usable area per child).")
+                        .status(ChecklistItemStatus.PENDING).build(),
+                ChecklistItem.builder().application(application).itemCode("SITE_03")
+                        .itemTitle("ECDC: Safety measures (furnishings, CCTV, hazards)").sortOrder(3)
+                        .itemDescription("Check age-appropriate furnishings, CCTV installation, and closure of identified safety hazards.")
+                        .status(ChecklistItemStatus.PENDING).build(),
+                ChecklistItem.builder().application(application).itemCode("SITE_04")
+                        .itemTitle("SCFA: Attendance logs vs subsidy claims").sortOrder(4)
+                        .itemDescription("On-site verify attendance records against submitted subsidy claim periods.")
+                        .status(ChecklistItemStatus.PENDING).build(),
+                ChecklistItem.builder().application(application).itemCode("SITE_05")
+                        .itemTitle("SCFA: Environment standards (lighting and ventilation)").sortOrder(5)
+                        .itemDescription("Check environmental suitability such as lighting adequacy and ventilation conditions.")
+                        .status(ChecklistItemStatus.PENDING).build(),
+                ChecklistItem.builder().application(application).itemCode("SITE_06")
+                        .itemTitle("HFAA: Staff-to-resident ratio verification").sortOrder(6)
+                        .itemDescription("Verify on-duty staffing against approved roster and resident-care needs.")
+                        .status(ChecklistItemStatus.PENDING).build(),
+                ChecklistItem.builder().application(application).itemCode("SITE_07")
+                        .itemTitle("HFAA: Premises sanitation and resident safety").sortOrder(7)
+                        .itemDescription("Inspect common areas, toilets, and kitchen hygiene for safe and sanitary conditions.")
+                        .status(ChecklistItemStatus.PENDING).build(),
+                ChecklistItem.builder().application(application).itemCode("SITE_08")
+                        .itemTitle("Childminding: Home safety and child-proofing").sortOrder(8)
+                        .itemDescription("Check child-proofing controls, hygiene setup, and required infant-care equipment.")
+                        .status(ChecklistItemStatus.PENDING).build(),
+                ChecklistItem.builder().application(application).itemCode("SITE_09")
+                        .itemTitle("Childminding: Capacity and supervision suitability").sortOrder(9)
+                        .itemDescription("Confirm proposed infant capacity can be safely accommodated in the residential setup.")
+                        .status(ChecklistItemStatus.PENDING).build(),
+                ChecklistItem.builder().application(application).itemCode("SITE_10")
+                        .itemTitle("Clarification evidence closure").sortOrder(10)
+                        .itemDescription("Track required clarifications such as revised floor plans, remedial safety proof, updated attendance forms, or fire-cert/screening updates.")
+                        .status(ChecklistItemStatus.PENDING).build()
+        ));
+        log.info("Seeded default site-visit checklist for application {}", application.getReferenceNumber());
     }
 
     private void recordStatusHistory(Application application,

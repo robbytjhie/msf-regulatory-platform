@@ -118,12 +118,14 @@ public class ExternalDocumentAiAnalysisService {
     }
 
     private String buildPrompt(Document doc) {
+        String ruleHint = ruleHintForCategory(doc.getDocumentCategory());
         return """
                 You are a licensing document screening assistant. You only see metadata (not file contents).
                 File name: %s
                 Content type: %s
                 Size bytes: %s
                 Category: %s
+                Rule focus for this category: %s
 
                 Reply with EXACTLY two lines:
                 Line 1: PASS or FLAG (uppercase, one word only)
@@ -132,8 +134,30 @@ public class ExternalDocumentAiAnalysisService {
                 safe(doc.getOriginalFileName()),
                 safe(doc.getContentType()),
                 doc.getFileSizeBytes() != null ? doc.getFileSizeBytes() : "unknown",
-                safe(doc.getDocumentCategory())
+                safe(doc.getDocumentCategory()),
+                ruleHint
         );
+    }
+
+    private String ruleHintForCategory(String category) {
+        if (category == null) {
+            return "Unknown category; flag if metadata suggests mismatch or missing context.";
+        }
+        return switch (category.trim().toUpperCase()) {
+            case "REGISTRATION_DOC" -> "Expected ACRA/ROS registration evidence; flag if legal-entity context is unclear.";
+            case "FLOOR_PLAN" -> "Expected revised premises/home floor plan for ECDC or Childminding assessment.";
+            case "CCTV_AND_SAFETY_PROOF" -> "Expected CCTV installation or remedial safety evidence for site compliance.";
+            case "ATTENDANCE_LOG" -> "Expected SCC attendance logs supporting SCFA subsidy audit period.";
+            case "SUBSIDY_WITHDRAWAL_FORM" -> "Expected SCFA subsidy withdrawal/claim adjustment documentation.";
+            case "ENVIRONMENT_COMPLIANCE_RECORD" -> "Expected environment compliance evidence (lighting/ventilation) for SCC checks.";
+            case "STAFF_ROSTER" -> "Expected duty roster for validating staff-to-resident ratio in HFAA inspection.";
+            case "SANITATION_AND_FIRE_CERT" -> "Expected safe and sanitary premises evidence including fire safety certification.";
+            case "STAFF_MEDICAL_SCREENING" -> "Expected staff medical screening evidence for resident-care duties.";
+            case "HOME_SAFETY_PHOTOS" -> "Expected home child-proofing and infant-safety photo evidence.";
+            case "EQUIPMENT_INVENTORY" -> "Expected infant-care equipment inventory aligned to declared capacity.";
+            case "CAPACITY_PLAN" -> "Expected capacity declaration with space-allocation rationale.";
+            default -> "General compliance evidence; flag if metadata is suspicious or category does not fit file naming/type.";
+        };
     }
 
     private static String safe(String s) {

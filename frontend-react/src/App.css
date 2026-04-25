@@ -95,6 +95,21 @@ th, td { border-bottom: 1px solid #e0e0d7; text-align: left; padding: 10px; }
   font-size: 12px;
   cursor: pointer;
 }
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) 1fr;
+  gap: 6px 16px;
+  margin: 12px 0 18px;
+  font-size: 14px;
+}
+.detail-grid dt {
+  margin: 0;
+  color: #5c5c58;
+  font-weight: 600;
+}
+.detail-grid dd {
+  margin: 0;
+}
 .workflow-box {
   margin: 12px 0 18px;
   padding: 12px 14px;

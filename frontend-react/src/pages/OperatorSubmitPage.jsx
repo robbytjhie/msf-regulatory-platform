@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../apiClient";
+import { DOCUMENT_REQUIREMENTS, REQUIRED_DOCUMENT_CATEGORIES } from "../documentRequirements";
 
 export default function OperatorSubmitPage() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function OperatorSubmitPage() {
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const requirementByCategory = new Map(DOCUMENT_REQUIREMENTS.map((r) => [r.category, r]));
 
   const onChange = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const logout = () => {
@@ -29,7 +31,7 @@ export default function OperatorSubmitPage() {
     fileName: file.name,
     contentType: file.type || "application/octet-stream",
     fileSizeBytes: file.size,
-    documentCategory: "GENERAL",
+    documentCategory: "GENERAL_SUPPORTING",
     aiVerificationStatus: "PENDING",
     aiVerificationNotes: "Verification queued on submit",
   });
@@ -41,6 +43,9 @@ export default function OperatorSubmitPage() {
   };
 
   const removeDocument = (id) => setDocuments((prev) => prev.filter((d) => d.id !== id));
+  const updateDocumentCategory = (id, category) => {
+    setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, documentCategory: category } : d)));
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -48,6 +53,14 @@ export default function OperatorSubmitPage() {
     setErr("");
     setOk("");
     setSubmitting(true);
+    const submittedCategories = new Set(documents.map((d) => d.documentCategory).filter(Boolean));
+    const missingRequired = REQUIRED_DOCUMENT_CATEGORIES.filter((c) => !submittedCategories.has(c));
+    if (missingRequired.length) {
+      setErr(`Missing required documents: ${missingRequired.join(", ")}`);
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const payload = {
         ...form,
@@ -103,6 +116,17 @@ export default function OperatorSubmitPage() {
             }}
           >
             <p><strong>Document Upload</strong> (Drag and drop files)</p>
+            <div className="workflow-box" style={{ marginTop: 10 }}>
+              <p className="workflow-title">Required supporting evidence</p>
+              <p className="workflow-line">
+                Upload existing evidence documents (license/certificates/plans), not a form template.
+              </p>
+              {DOCUMENT_REQUIREMENTS.map((r) => (
+                <p key={r.category} className="workflow-line">
+                  <strong>{r.required ? "[Required]" : "[Optional]"} {r.label}</strong> ({r.category}) — Examples: {r.examples}
+                </p>
+              ))}
+            </div>
             <p className="hint">or use file picker below</p>
             <input
               className="field"
@@ -117,6 +141,7 @@ export default function OperatorSubmitPage() {
                 <tr>
                   <th>File</th>
                   <th>Size (KB)</th>
+                  <th>Category</th>
                   <th>AI Verification</th>
                   <th>Notes</th>
                   <th>Action</th>
@@ -128,11 +153,24 @@ export default function OperatorSubmitPage() {
                     <td>{d.fileName}</td>
                     <td>{(d.fileSizeBytes / 1024).toFixed(1)}</td>
                     <td>
+                      <select
+                        className="field"
+                        value={d.documentCategory}
+                        onChange={(e) => updateDocumentCategory(d.id, e.target.value)}
+                      >
+                        {DOCUMENT_REQUIREMENTS.map((r) => (
+                          <option key={r.category} value={r.category}>
+                            {r.label} ({r.category})
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
                       <span className={`badge ${d.aiVerificationStatus === "PASSED" ? "badge-green" : d.aiVerificationStatus === "FLAGGED" ? "badge-red" : "badge-amber"}`}>
                         {d.aiVerificationStatus}
                       </span>
                     </td>
-                    <td>{d.aiVerificationNotes}</td>
+                    <td>{d.aiVerificationNotes}<br /><span className="hint">Rule: {requirementByCategory.get(d.documentCategory)?.aiRule || "General rule"}</span></td>
                     <td>
                       <button type="button" className="btn secondary" onClick={() => removeDocument(d.id)}>
                         Remove

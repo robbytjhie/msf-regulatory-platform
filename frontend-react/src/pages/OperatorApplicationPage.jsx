@@ -3,6 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../apiClient";
 import { statusClass } from "../statusUtils";
 
+function formatTs(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
+}
+
 export default function OperatorApplicationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -118,6 +124,23 @@ export default function OperatorApplicationPage() {
         <p><strong>Final Outcome:</strong> {app.statusLabel === "Approved" || app.statusLabel === "Rejected" ? app.statusLabel : "In Progress"}</p>
         {err ? <div className="alert-box error">{err}</div> : null}
         {ok ? <div className="alert-box success">{ok}</div> : null}
+        {app.statusHistory?.length ? (
+          <>
+            <h4>Shared Timeline</h4>
+            <table>
+              <thead><tr><th>When</th><th>From</th><th>To</th></tr></thead>
+              <tbody>
+                {app.statusHistory.map((h, idx) => (
+                  <tr key={`${h.changedAt || idx}-${h.toStatusLabel || idx}`}>
+                    <td>{formatTs(h.changedAt)}</td>
+                    <td>{h.fromStatusLabel || "Initial submission"}</td>
+                    <td>{h.toStatusLabel || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ) : null}
         {app.officerComments?.length ? (
           <>
             <h4>Officer Feedback</h4>
