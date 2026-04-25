@@ -122,6 +122,21 @@ export default function OfficerApplicationPage() {
   }, [id]);
 
   useEffect(() => {
+    if (!id) return;
+    const poll = async () => {
+      try {
+        const fresh = await api.getOfficerApplication(id);
+        setApp(fresh);
+      } catch {
+        // Keep current view while waiting for next poll.
+      }
+    };
+    poll();
+    const timer = window.setInterval(poll, 2000);
+    return () => window.clearInterval(timer);
+  }, [id]);
+
+  useEffect(() => {
     if (!app?.internalStatus) return;
     const currentStatus = normalizeInternalStatus(app.internalStatus);
     const allowed = transitionMap[currentStatus] || [];
