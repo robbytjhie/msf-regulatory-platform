@@ -182,6 +182,7 @@ export default function OperatorApplicationPage() {
   if (!app) return <main className="app-shell">{err ? <p className="error">{err}</p> : <p>Loading...</p>}</main>;
 
   const canResubmit = app.statusLabel === "Pending Pre-Site Resubmission" || app.statusLabel === "Pending Post-Site Resubmission";
+  const awaitingPostSiteClarification = app.statusLabel === "Pending Post-Site Clarification";
   const unresolvedIssueDocIds = new Set(
     (app.officerComments || [])
       .filter((c) => c.targetDocumentId && c.resolved === false)
@@ -367,6 +368,11 @@ export default function OperatorApplicationPage() {
             ) : null}
           </>
         ) : null}
+        {awaitingPostSiteClarification ? (
+          <p className="hint">
+            This stage is checklist clarification. Respond to requested checklist items below. After that, the officer will review and move the application to <strong>Pending Post-Site Resubmission</strong>, where submission becomes available again.
+          </p>
+        ) : null}
         {(() => {
           const checklistCreated = (app.statusHistory || []).some((h) => h.toStatusLabel === "Site Visit Scheduled" || h.toStatusLabel === "Site Visit Done")
             || ["Pending Site Visit", "Site Visit Done", "Pending Post-Site Clarification", "Pending Post-Site Resubmission", "Post-Site Resubmitted", "Pending Approval", "Approved", "Rejected"].includes(app.statusLabel);
@@ -394,7 +400,11 @@ export default function OperatorApplicationPage() {
                 </tbody>
               </table>
             ) : (
-              <p className="hint">Checklist has been created. No clarification response is required right now.</p>
+              <p className="hint">
+                {awaitingPostSiteClarification
+                  ? "No checklist item is currently awaiting your response. The application is waiting for officer review/next status update."
+                  : "Checklist has been created. No clarification response is required right now."}
+              </p>
             )}
           </>
           );
