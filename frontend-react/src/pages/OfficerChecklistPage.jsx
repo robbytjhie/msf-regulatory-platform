@@ -44,12 +44,20 @@ export default function OfficerChecklistPage() {
     })),
   });
   const hasPendingItems = items.some((i) => i.status === "PENDING");
+  const officerChecklistEditableStatuses = new Set([
+    "SITE_VISIT_SCHEDULED",
+    "SITE_VISIT_DONE",
+    "AWAITING_POST_SITE_CLARIFICATION",
+    "POST_SITE_CLARIFICATION_RESUBMITTED",
+    "PENDING_APPROVAL",
+  ]);
+  const editableByOwnership = officerChecklistEditableStatuses.has(applicationInternalStatus);
   const allChecklistResolved = items.length > 0 && items.every((i) => i.status === "SATISFACTORY" || i.status === "RESOLVED");
   const inApprovalOrTerminal =
     applicationInternalStatus === "PENDING_APPROVAL"
     || applicationInternalStatus === "APPROVED"
     || applicationInternalStatus === "REJECTED";
-  const checklistLocked = allChecklistResolved && inApprovalOrTerminal;
+  const checklistLocked = !editableByOwnership || (allChecklistResolved && inApprovalOrTerminal);
 
   const saveDraft = async () => {
     if (!window.confirm("Save checklist draft?")) return;
@@ -124,7 +132,9 @@ export default function OfficerChecklistPage() {
         </table>
         {checklistLocked ? (
           <p className="hint" style={{ marginTop: 10 }}>
-            Checklist is locked because all items are resolved and application is already in approval/terminal stage.
+            {!editableByOwnership
+              ? "Checklist can be updated only when action is on officer side."
+              : "Checklist is locked because all items are resolved and application is already in approval/terminal stage."}
           </p>
         ) : null}
         {hasPendingItems ? (

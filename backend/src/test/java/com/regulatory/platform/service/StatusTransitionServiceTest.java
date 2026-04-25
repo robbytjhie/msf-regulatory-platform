@@ -34,6 +34,8 @@ class StatusTransitionServiceTest {
                 Arguments.of(ApplicationStatus.UNDER_REVIEW,           ApplicationStatus.REJECTED),
                 Arguments.of(ApplicationStatus.SITE_VISIT_SCHEDULED,   ApplicationStatus.SITE_VISIT_DONE),
                 Arguments.of(ApplicationStatus.SITE_VISIT_DONE,        ApplicationStatus.AWAITING_POST_SITE_CLARIFICATION),
+                Arguments.of(ApplicationStatus.PENDING_POST_SITE_RESUBMISSION, ApplicationStatus.AWAITING_POST_SITE_CLARIFICATION),
+                Arguments.of(ApplicationStatus.PENDING_POST_SITE_RESUBMISSION, ApplicationStatus.PENDING_APPROVAL),
                 Arguments.of(ApplicationStatus.PENDING_APPROVAL,       ApplicationStatus.APPROVED),
                 Arguments.of(ApplicationStatus.PENDING_APPROVAL,       ApplicationStatus.REJECTED)
         );

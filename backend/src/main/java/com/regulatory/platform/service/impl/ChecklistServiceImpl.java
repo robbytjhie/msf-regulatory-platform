@@ -52,7 +52,7 @@ public class ChecklistServiceImpl implements ChecklistService {
     @Override
     public void saveDraft(Long applicationId, ChecklistSubmitRequest request, User officer) {
         Application app = findApplicationOrThrow(applicationId);
-        assertSiteVisitScheduled(app);
+        assertChecklistEditable(app);
         applyChecklistUpdates(applicationId, request, true);
         log.info("Draft checklist saved for application {} by officer {}", applicationId, officer.getEmail());
     }
@@ -60,7 +60,7 @@ public class ChecklistServiceImpl implements ChecklistService {
     @Override
     public void submitChecklist(Long applicationId, ChecklistSubmitRequest request, User officer) {
         Application app = findApplicationOrThrow(applicationId);
-        assertSiteVisitScheduled(app);
+        assertChecklistEditable(app);
 
         applyChecklistUpdates(applicationId, request, false);
         List<ChecklistItem> submittedItems = checklistItemRepository.findByApplicationIdOrderBySortOrderAsc(applicationId);
@@ -193,11 +193,16 @@ public class ChecklistServiceImpl implements ChecklistService {
                 .orElseThrow(() -> new ApplicationNotFoundException("Application not found: " + id));
     }
 
-    private void assertSiteVisitScheduled(Application app) {
-        if (app.getStatus() != ApplicationStatus.SITE_VISIT_SCHEDULED
-                && app.getStatus() != ApplicationStatus.SITE_VISIT_DONE) {
+    private void assertChecklistEditable(Application app) {
+        ApplicationStatus s = app.getStatus();
+        boolean editable = s == ApplicationStatus.SITE_VISIT_SCHEDULED
+                || s == ApplicationStatus.SITE_VISIT_DONE
+                || s == ApplicationStatus.AWAITING_POST_SITE_CLARIFICATION
+                || s == ApplicationStatus.POST_SITE_CLARIFICATION_RESUBMITTED
+                || s == ApplicationStatus.PENDING_APPROVAL;
+        if (!editable) {
             throw new ForbiddenOperationException(
-                    "Checklist is only accessible after site visit is scheduled");
+                    "Checklist cannot be updated at this stage");
         }
     }
 

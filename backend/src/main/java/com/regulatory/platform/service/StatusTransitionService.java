@@ -55,7 +55,9 @@ public class StatusTransitionService {
                     Set.of(ApplicationStatus.PENDING_POST_SITE_RESUBMISSION)),
 
             Map.entry(ApplicationStatus.PENDING_POST_SITE_RESUBMISSION,
-                    Set.of(ApplicationStatus.POST_SITE_CLARIFICATION_RESUBMITTED)),
+                    Set.of(ApplicationStatus.POST_SITE_CLARIFICATION_RESUBMITTED,
+                            ApplicationStatus.AWAITING_POST_SITE_CLARIFICATION,
+                            ApplicationStatus.PENDING_APPROVAL)),
 
             Map.entry(ApplicationStatus.POST_SITE_CLARIFICATION_RESUBMITTED,
                     Set.of(ApplicationStatus.PENDING_APPROVAL,
