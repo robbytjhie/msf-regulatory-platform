@@ -252,6 +252,7 @@ export default function OperatorApplicationPage() {
                   <td>
                     <input
                       className="field"
+                      style={{ maxWidth: 190, padding: "6px 8px", fontSize: 12 }}
                       type="file"
                       onChange={(e) => setReplacementFiles((prev) => ({ ...prev, [d.id]: e.target.files?.[0] || null }))}
                     />
@@ -260,6 +261,7 @@ export default function OperatorApplicationPage() {
                     <button
                       type="button"
                       className="btn secondary"
+                      style={{ whiteSpace: "nowrap", padding: "8px 10px" }}
                       disabled={validatingDocId === d.id}
                       onClick={() => reuploadAndValidate(d)}
                     >
@@ -272,21 +274,26 @@ export default function OperatorApplicationPage() {
           </table>
         ) : <p className="hint">No unresolved document issues at this time.</p>}
         <h4>Resubmit Updated Fields</h4>
-        {!canResubmit ? <div className="hint">Resubmission is only available when status is Pending Pre-Site Resubmission or Awaiting Post-Site Resubmission.</div> : null}
-        <div className="button-grid">
-          <input className="field" value={resubmit.businessName} placeholder="Business Name (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessName: e.target.value }))} />
-          <input className="field" value={resubmit.businessAddress} placeholder="Business Address (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessAddress: e.target.value }))} />
-          <input className="field" value={resubmit.contactPhone} placeholder="Contact Phone (optional)" onChange={(e) => setResubmit((r) => ({ ...r, contactPhone: e.target.value }))} />
-          <textarea className="field" value={resubmit.activityDescription} placeholder="Activity Description (optional)" onChange={(e) => setResubmit((r) => ({ ...r, activityDescription: e.target.value }))} />
-          <button className="btn" disabled={!canSubmitResubmission || submitting} onClick={submitResubmit}>
-            {submitting ? "Submitting..." : "Submit Resubmission"}
-          </button>
-        </div>
-        {!allIssueDocsValidated && issueDocuments.length ? (
-          <p className="hint">
-            Submit is disabled until all issue documents are re-uploaded and validated as PASSED.
-          </p>
-        ) : null}
+        {!canResubmit ? (
+          <div className="hint">Resubmission is available only after officer returns the case for correction.</div>
+        ) : (
+          <>
+            <div className="button-grid">
+              <input className="field" value={resubmit.businessName} placeholder="Business Name (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessName: e.target.value }))} />
+              <input className="field" value={resubmit.businessAddress} placeholder="Business Address (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessAddress: e.target.value }))} />
+              <input className="field" value={resubmit.contactPhone} placeholder="Contact Phone (optional)" onChange={(e) => setResubmit((r) => ({ ...r, contactPhone: e.target.value }))} />
+              <textarea className="field" value={resubmit.activityDescription} placeholder="Activity Description (optional)" onChange={(e) => setResubmit((r) => ({ ...r, activityDescription: e.target.value }))} />
+              <button className="btn" disabled={!canSubmitResubmission || submitting} onClick={submitResubmit}>
+                {submitting ? "Submitting..." : "Submit Resubmission"}
+              </button>
+            </div>
+            {!allIssueDocsValidated && issueDocuments.length ? (
+              <p className="hint">
+                Submit is disabled until all issue documents are re-uploaded and validated as PASSED.
+              </p>
+            ) : null}
+          </>
+        )}
         {flagged.length ? (
           <>
             <h4>Flagged Checklist Items</h4>
