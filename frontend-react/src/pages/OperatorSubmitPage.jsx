@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../apiClient";
-import { DOCUMENT_REQUIREMENTS, REQUIRED_DOCUMENT_CATEGORIES } from "../documentRequirements";
+import { TRACK_OPTIONS, requirementsForTrack, requiredCategoriesForTrack } from "../documentRequirements";
 
 export default function OperatorSubmitPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     businessName: "",
+    licensingTrack: "ECDC",
     businessType: "",
     businessAddress: "",
     contactPhone: "",
@@ -17,7 +18,8 @@ export default function OperatorSubmitPage() {
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const requirementByCategory = new Map(DOCUMENT_REQUIREMENTS.map((r) => [r.category, r]));
+  const trackRequirements = requirementsForTrack(form.licensingTrack);
+  const requirementByCategory = new Map(trackRequirements.map((r) => [r.category, r]));
 
   const onChange = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const logout = () => {
@@ -31,7 +33,7 @@ export default function OperatorSubmitPage() {
     fileName: file.name,
     contentType: file.type || "application/octet-stream",
     fileSizeBytes: file.size,
-    documentCategory: "GENERAL_SUPPORTING",
+    documentCategory: trackRequirements[0]?.category || "GENERAL_SUPPORTING",
     aiVerificationStatus: "PENDING",
     aiVerificationNotes: "Verification queued on submit",
   });
@@ -46,6 +48,11 @@ export default function OperatorSubmitPage() {
   const updateDocumentCategory = (id, category) => {
     setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, documentCategory: category } : d)));
   };
+  useEffect(() => {
+    const allowed = new Set(trackRequirements.map((r) => r.category));
+    const fallback = trackRequirements[0]?.category || "GENERAL_SUPPORTING";
+    setDocuments((prev) => prev.map((d) => (allowed.has(d.documentCategory) ? d : { ...d, documentCategory: fallback })));
+  }, [form.licensingTrack]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -54,7 +61,7 @@ export default function OperatorSubmitPage() {
     setOk("");
     setSubmitting(true);
     const submittedCategories = new Set(documents.map((d) => d.documentCategory).filter(Boolean));
-    const missingRequired = REQUIRED_DOCUMENT_CATEGORIES.filter((c) => !submittedCategories.has(c));
+    const missingRequired = requiredCategoriesForTrack(form.licensingTrack).filter((c) => !submittedCategories.has(c));
     if (missingRequired.length) {
       setErr(`Missing required documents: ${missingRequired.join(", ")}`);
       setSubmitting(false);
@@ -98,6 +105,9 @@ export default function OperatorSubmitPage() {
         {ok ? <div className="alert-box success">{ok}</div> : null}
         <form className="button-grid" onSubmit={submit}>
           <input className="field" placeholder="Business Name" value={form.businessName} onChange={(e) => onChange("businessName", e.target.value)} required />
+          <select className="field" value={form.licensingTrack} onChange={(e) => onChange("licensingTrack", e.target.value)} required>
+            {TRACK_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
           <input className="field" placeholder="Business Type" value={form.businessType} onChange={(e) => onChange("businessType", e.target.value)} required />
           <input className="field" placeholder="Business Address" value={form.businessAddress} onChange={(e) => onChange("businessAddress", e.target.value)} required />
           <input className="field" placeholder="Contact Phone" value={form.contactPhone} onChange={(e) => onChange("contactPhone", e.target.value)} />
@@ -121,7 +131,7 @@ export default function OperatorSubmitPage() {
               <p className="workflow-line">
                 Upload existing evidence documents (license/certificates/plans), not a form template.
               </p>
-              {DOCUMENT_REQUIREMENTS.map((r) => (
+              {trackRequirements.map((r) => (
                 <p key={r.category} className="workflow-line">
                   <strong>{r.required ? "[Required]" : "[Optional]"} {r.label}</strong> ({r.category}) — Examples: {r.examples}
                 </p>
@@ -158,7 +168,7 @@ export default function OperatorSubmitPage() {
                         value={d.documentCategory}
                         onChange={(e) => updateDocumentCategory(d.id, e.target.value)}
                       >
-                        {DOCUMENT_REQUIREMENTS.map((r) => (
+                        {trackRequirements.map((r) => (
                           <option key={r.category} value={r.category}>
                             {r.label} ({r.category})
                           </option>

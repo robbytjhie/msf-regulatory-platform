@@ -4,6 +4,7 @@ import com.regulatory.platform.entity.Application;
 import com.regulatory.platform.entity.OfficerComment;
 import com.regulatory.platform.entity.StatusHistory;
 import com.regulatory.platform.enums.ApplicationStatus;
+import com.regulatory.platform.enums.LicensingTrack;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +23,7 @@ public record ApplicationDetailResponse(
         String statusLabel,         // role-specific label from spec status mapping
         ApplicationStatus internalStatus, // null for operator responses
         String businessName,
+        LicensingTrack licensingTrack,
         String businessType,
         String businessAddress,
         String contactPhone,
@@ -44,6 +46,7 @@ public record ApplicationDetailResponse(
                 app.getStatus().getOfficerLabel(),
                 app.getStatus(),                          // officer sees internal enum
                 app.getBusinessName(),
+                app.getLicensingTrack(),
                 app.getBusinessType(),
                 app.getBusinessAddress(),
                 app.getContactPhone(),
@@ -67,6 +70,7 @@ public record ApplicationDetailResponse(
                 app.getStatus().getOperatorLabel(),
                 null,                                     // SPEC: internal status never exposed to operator
                 app.getBusinessName(),
+                app.getLicensingTrack(),
                 app.getBusinessType(),
                 app.getBusinessAddress(),
                 app.getContactPhone(),

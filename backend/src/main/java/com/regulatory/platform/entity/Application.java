@@ -1,6 +1,7 @@
 package com.regulatory.platform.entity;
 
 import com.regulatory.platform.enums.ApplicationStatus;
+import com.regulatory.platform.enums.LicensingTrack;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -38,6 +39,10 @@ public class Application {
 
     @Column(nullable = false)
     private String businessName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private LicensingTrack licensingTrack;
 
     private String businessType;
 

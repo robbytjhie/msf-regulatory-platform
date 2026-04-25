@@ -149,6 +149,7 @@ export default function OfficerApplicationPage() {
         <h3>{app.referenceNumber} <span className={`badge ${statusClass(app.statusLabel)}`}>{app.statusLabel}</span></h3>
         <p>Operator: {app.operatorName} ({app.operatorEmail})</p>
         {app.assignedOfficerName ? <p>Assigned officer: {app.assignedOfficerName}</p> : null}
+        <p>Track: {app.licensingTrack || "-"}</p>
         <p>Submission Round #{app.submissionRound}</p>
         <p><strong>Final Outcome:</strong> {app.statusLabel === "Approved" || app.statusLabel === "Rejected" ? app.statusLabel : "In Progress"}</p>
         <p><strong>Current internal state:</strong> {app.internalStatus}</p>

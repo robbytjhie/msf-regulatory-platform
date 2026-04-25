@@ -9,6 +9,7 @@ import com.regulatory.platform.dto.response.DocumentResponse;
 import com.regulatory.platform.entity.*;
 import com.regulatory.platform.enums.ApplicationStatus;
 import com.regulatory.platform.enums.ChecklistItemStatus;
+import com.regulatory.platform.enums.LicensingTrack;
 import com.regulatory.platform.enums.NotificationType;
 import com.regulatory.platform.enums.UserRole;
 import com.regulatory.platform.exception.ApplicationNotFoundException;
@@ -27,7 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -37,9 +38,6 @@ import java.util.UUID;
 @Slf4j
 @Transactional
 public class ApplicationServiceImpl implements ApplicationService {
-    private static final Set<String> REQUIRED_DOC_CATEGORIES = Set.of(
-            "REGISTRATION_DOC"
-    );
 
     private final ApplicationRepository applicationRepository;
     private final StatusHistoryRepository statusHistoryRepository;
@@ -61,6 +59,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .operator(operator)
                 .status(ApplicationStatus.APPLICATION_RECEIVED)
                 .businessName(request.businessName())
+                .licensingTrack(request.licensingTrack())
                 .businessType(request.businessType())
                 .businessAddress(request.businessAddress())
                 .contactPhone(request.contactPhone())
@@ -298,11 +297,20 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .map(String::trim)
                 .map(String::toUpperCase)
                 .collect(java.util.stream.Collectors.toSet());
-        Set<String> missing = new LinkedHashSet<>(REQUIRED_DOC_CATEGORIES);
+        Set<String> missing = new java.util.LinkedHashSet<>(requiredDocCategoriesForTrack(request.licensingTrack()));
         missing.removeAll(submitted);
         if (!missing.isEmpty()) {
             throw new InvalidRequestException("Missing required document categories: " + String.join(", ", missing));
         }
+    }
+
+    private Set<String> requiredDocCategoriesForTrack(LicensingTrack track) {
+        return switch (track) {
+            case ECDC -> Set.of("REGISTRATION_DOC", "FLOOR_PLAN");
+            case SCFA -> Set.of("REGISTRATION_DOC", "ATTENDANCE_LOG");
+            case HFAA -> Set.of("REGISTRATION_DOC", "STAFF_ROSTER");
+            case CHILDMINDING -> Set.of("REGISTRATION_DOC", "HOME_SAFETY_PHOTOS");
+        };
     }
 
     /**
@@ -313,48 +321,72 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (!checklistItemRepository.findByApplicationIdOrderBySortOrderAsc(application.getId()).isEmpty()) {
             return;
         }
-        checklistItemRepository.saveAll(List.of(
+        List<ChecklistItem> baseItems = new ArrayList<>(List.of(
                 ChecklistItem.builder().application(application).itemCode("SITE_01")
                         .itemTitle("Site access and safety briefing").sortOrder(1)
-                        .itemDescription("Confirm access arrangements, PPE, and emergency procedures with the operator.")
-                        .status(ChecklistItemStatus.PENDING).build(),
-                ChecklistItem.builder().application(application).itemCode("SITE_02")
-                        .itemTitle("ECDC: Spatial capacity and play-space adequacy").sortOrder(2)
-                        .itemDescription("Verify indoor/outdoor activity space and child-capacity fit (e.g., minimum usable area per child).")
-                        .status(ChecklistItemStatus.PENDING).build(),
-                ChecklistItem.builder().application(application).itemCode("SITE_03")
-                        .itemTitle("ECDC: Safety measures (furnishings, CCTV, hazards)").sortOrder(3)
-                        .itemDescription("Check age-appropriate furnishings, CCTV installation, and closure of identified safety hazards.")
-                        .status(ChecklistItemStatus.PENDING).build(),
-                ChecklistItem.builder().application(application).itemCode("SITE_04")
-                        .itemTitle("SCFA: Attendance logs vs subsidy claims").sortOrder(4)
-                        .itemDescription("On-site verify attendance records against submitted subsidy claim periods.")
-                        .status(ChecklistItemStatus.PENDING).build(),
-                ChecklistItem.builder().application(application).itemCode("SITE_05")
-                        .itemTitle("SCFA: Environment standards (lighting and ventilation)").sortOrder(5)
-                        .itemDescription("Check environmental suitability such as lighting adequacy and ventilation conditions.")
-                        .status(ChecklistItemStatus.PENDING).build(),
-                ChecklistItem.builder().application(application).itemCode("SITE_06")
-                        .itemTitle("HFAA: Staff-to-resident ratio verification").sortOrder(6)
-                        .itemDescription("Verify on-duty staffing against approved roster and resident-care needs.")
-                        .status(ChecklistItemStatus.PENDING).build(),
-                ChecklistItem.builder().application(application).itemCode("SITE_07")
-                        .itemTitle("HFAA: Premises sanitation and resident safety").sortOrder(7)
-                        .itemDescription("Inspect common areas, toilets, and kitchen hygiene for safe and sanitary conditions.")
-                        .status(ChecklistItemStatus.PENDING).build(),
-                ChecklistItem.builder().application(application).itemCode("SITE_08")
-                        .itemTitle("Childminding: Home safety and child-proofing").sortOrder(8)
-                        .itemDescription("Check child-proofing controls, hygiene setup, and required infant-care equipment.")
-                        .status(ChecklistItemStatus.PENDING).build(),
-                ChecklistItem.builder().application(application).itemCode("SITE_09")
-                        .itemTitle("Childminding: Capacity and supervision suitability").sortOrder(9)
-                        .itemDescription("Confirm proposed infant capacity can be safely accommodated in the residential setup.")
-                        .status(ChecklistItemStatus.PENDING).build(),
-                ChecklistItem.builder().application(application).itemCode("SITE_10")
-                        .itemTitle("Clarification evidence closure").sortOrder(10)
-                        .itemDescription("Track required clarifications such as revised floor plans, remedial safety proof, updated attendance forms, or fire-cert/screening updates.")
+                        .itemDescription("Confirm access arrangements and safety briefing with the operator.")
                         .status(ChecklistItemStatus.PENDING).build()
         ));
+        List<ChecklistItem> trackItems = switch (application.getLicensingTrack()) {
+            case ECDC -> List.of(
+                    ChecklistItem.builder().application(application).itemCode("ECDC_01")
+                            .itemTitle("Spatial capacity verification").sortOrder(2)
+                            .itemDescription("Verify indoor/outdoor play space adequacy and child-capacity fit.")
+                            .status(ChecklistItemStatus.PENDING).build(),
+                    ChecklistItem.builder().application(application).itemCode("ECDC_02")
+                            .itemTitle("Safety and CCTV measures").sortOrder(3)
+                            .itemDescription("Check age-appropriate furnishings, hazard controls, and CCTV installation.")
+                            .status(ChecklistItemStatus.PENDING).build(),
+                    ChecklistItem.builder().application(application).itemCode("ECDC_03")
+                            .itemTitle("Clarification evidence closure").sortOrder(4)
+                            .itemDescription("Track revised floor plans or proof of completed remedial safety works.")
+                            .status(ChecklistItemStatus.PENDING).build()
+            );
+            case SCFA -> List.of(
+                    ChecklistItem.builder().application(application).itemCode("SCFA_01")
+                            .itemTitle("Attendance logs vs subsidy claims").sortOrder(2)
+                            .itemDescription("On-site verify attendance records against submitted subsidy claims.")
+                            .status(ChecklistItemStatus.PENDING).build(),
+                    ChecklistItem.builder().application(application).itemCode("SCFA_02")
+                            .itemTitle("Environment standards").sortOrder(3)
+                            .itemDescription("Check lighting, ventilation, and site supervision conditions.")
+                            .status(ChecklistItemStatus.PENDING).build(),
+                    ChecklistItem.builder().application(application).itemCode("SCFA_03")
+                            .itemTitle("Clarification evidence closure").sortOrder(4)
+                            .itemDescription("Track updated subsidy withdrawal forms or amended attendance records.")
+                            .status(ChecklistItemStatus.PENDING).build()
+            );
+            case HFAA -> List.of(
+                    ChecklistItem.builder().application(application).itemCode("HFAA_01")
+                            .itemTitle("Staff-to-resident ratio verification").sortOrder(2)
+                            .itemDescription("Verify on-duty staff against approved roster and resident-care needs.")
+                            .status(ChecklistItemStatus.PENDING).build(),
+                    ChecklistItem.builder().application(application).itemCode("HFAA_02")
+                            .itemTitle("Sanitation and premises safety").sortOrder(3)
+                            .itemDescription("Inspect common areas, toilets, and kitchen hygiene for sanitary compliance.")
+                            .status(ChecklistItemStatus.PENDING).build(),
+                    ChecklistItem.builder().application(application).itemCode("HFAA_03")
+                            .itemTitle("Clarification evidence closure").sortOrder(4)
+                            .itemDescription("Track updated fire safety certificates or staff medical screening records.")
+                            .status(ChecklistItemStatus.PENDING).build()
+            );
+            case CHILDMINDING -> List.of(
+                    ChecklistItem.builder().application(application).itemCode("CM_01")
+                            .itemTitle("Home safety and child-proofing").sortOrder(2)
+                            .itemDescription("Check child-proofing controls, hygiene setup, and safety equipment.")
+                            .status(ChecklistItemStatus.PENDING).build(),
+                    ChecklistItem.builder().application(application).itemCode("CM_02")
+                            .itemTitle("Home capacity suitability").sortOrder(3)
+                            .itemDescription("Confirm the home can safely accommodate the proposed number of infants.")
+                            .status(ChecklistItemStatus.PENDING).build(),
+                    ChecklistItem.builder().application(application).itemCode("CM_03")
+                            .itemTitle("Clarification evidence closure").sortOrder(4)
+                            .itemDescription("Track new safety-gate photos or revised equipment inventory evidence.")
+                            .status(ChecklistItemStatus.PENDING).build()
+            );
+        };
+        baseItems.addAll(trackItems);
+        checklistItemRepository.saveAll(baseItems);
         log.info("Seeded default site-visit checklist for application {}", application.getReferenceNumber());
     }
 

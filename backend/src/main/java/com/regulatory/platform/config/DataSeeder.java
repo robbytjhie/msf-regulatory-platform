@@ -1,18 +1,26 @@
 package com.regulatory.platform.config;
 
-import com.regulatory.platform.entity.*;
+import com.regulatory.platform.entity.Application;
+import com.regulatory.platform.entity.StatusHistory;
+import com.regulatory.platform.entity.User;
 import com.regulatory.platform.enums.ApplicationStatus;
-import com.regulatory.platform.enums.ChecklistItemStatus;
+import com.regulatory.platform.enums.LicensingTrack;
 import com.regulatory.platform.enums.UserRole;
-import com.regulatory.platform.repository.*;
+import com.regulatory.platform.repository.ApiAuditLogRepository;
+import com.regulatory.platform.repository.ApplicationRepository;
+import com.regulatory.platform.repository.ChecklistItemRepository;
+import com.regulatory.platform.repository.ClarificationThreadRepository;
+import com.regulatory.platform.repository.DocumentRepository;
+import com.regulatory.platform.repository.NotificationRepository;
+import com.regulatory.platform.repository.OfficerCommentRepository;
+import com.regulatory.platform.repository.StatusHistoryRepository;
+import com.regulatory.platform.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
@@ -22,15 +30,27 @@ public class DataSeeder {
     @Bean
     CommandLineRunner seedData(
             UserRepository userRepository,
+            ApiAuditLogRepository apiAuditLogRepository,
+            NotificationRepository notificationRepository,
             ApplicationRepository applicationRepository,
+            DocumentRepository documentRepository,
+            OfficerCommentRepository officerCommentRepository,
             StatusHistoryRepository statusHistoryRepository,
             ChecklistItemRepository checklistItemRepository,
+            ClarificationThreadRepository clarificationThreadRepository,
             PasswordEncoder passwordEncoder) {
 
         return args -> {
-            if (userRepository.count() > 0) return; // idempotent
+            clarificationThreadRepository.deleteAllInBatch();
+            checklistItemRepository.deleteAllInBatch();
+            officerCommentRepository.deleteAllInBatch();
+            documentRepository.deleteAllInBatch();
+            statusHistoryRepository.deleteAllInBatch();
+            notificationRepository.deleteAllInBatch();
+            applicationRepository.deleteAllInBatch();
+            apiAuditLogRepository.deleteAllInBatch();
+            userRepository.deleteAllInBatch();
 
-            // ── Users ─────────────────────────────────────────────
             User officer = userRepository.save(User.builder()
                     .email("officer@gov.sg")
                     .password(passwordEncoder.encode("password"))
@@ -54,92 +74,105 @@ public class DataSeeder {
                     .organisationName("Beta Enterprises")
                     .build());
 
-            // ── Application 1: Awaiting resubmission (UC1 demo) ───
             Application app1 = applicationRepository.save(Application.builder()
-                    .referenceNumber("LIC-2025-DEMO01")
+                    .referenceNumber("LIC-2026-ECDC01")
                     .operator(operator)
                     .assignedOfficer(officer)
                     .status(ApplicationStatus.PENDING_PRE_SITE_RESUBMISSION)
-                    .businessName("ACME Food Catering")
-                    .businessType("Food & Beverage")
-                    .businessAddress("123 Orchard Road, #04-01, Singapore 238858")
+                    .businessName("Little Sprouts Preschool")
+                    .licensingTrack(LicensingTrack.ECDC)
+                    .businessType("Early Childhood Development Centre")
+                    .businessAddress("12 Fernvale Street, Singapore 798123")
                     .contactPhone("+65 9123 4567")
-                    .activityDescription("Large scale catering operations for corporate events")
+                    .activityDescription("ECDC licence renewal with floor-plan and safety remediation updates")
                     .submissionRound(1)
                     .build());
-
             statusHistoryRepository.save(StatusHistory.builder()
                     .application(app1).fromStatus(null)
                     .toStatus(ApplicationStatus.APPLICATION_RECEIVED)
                     .changedBy(operator).notes("Initial submission").build());
-
             statusHistoryRepository.save(StatusHistory.builder()
                     .application(app1)
                     .fromStatus(ApplicationStatus.APPLICATION_RECEIVED)
                     .toStatus(ApplicationStatus.UNDER_REVIEW)
                     .changedBy(officer).notes("Picked up for review").build());
-
             statusHistoryRepository.save(StatusHistory.builder()
                     .application(app1)
                     .fromStatus(ApplicationStatus.UNDER_REVIEW)
                     .toStatus(ApplicationStatus.PENDING_PRE_SITE_RESUBMISSION)
-                    .changedBy(officer).notes("Additional documents required").build());
+                    .changedBy(officer).notes("Please provide revised floor plan and safety remedial proof").build());
 
-            // ── Application 2: Site visit scheduled (UC3 demo) ────
             Application app2 = applicationRepository.save(Application.builder()
-                    .referenceNumber("LIC-2025-DEMO02")
+                    .referenceNumber("LIC-2026-SCFA01")
                     .operator(operator2)
                     .assignedOfficer(officer)
                     .status(ApplicationStatus.SITE_VISIT_SCHEDULED)
-                    .businessName("Beta Manufacturing")
-                    .businessType("Manufacturing")
-                    .businessAddress("456 Tuas Avenue, Singapore 638365")
+                    .businessName("Bright Minds Student Care")
+                    .licensingTrack(LicensingTrack.SCFA)
+                    .businessType("Student Care Centre")
+                    .businessAddress("89 Jurong East Ave 1, Singapore 609777")
                     .contactPhone("+65 8765 4321")
-                    .activityDescription("Chemical manufacturing and storage facility")
+                    .activityDescription("SCFA compliance audit for subsidy and attendance controls")
                     .submissionRound(2)
                     .build());
+            statusHistoryRepository.save(StatusHistory.builder()
+                    .application(app2).fromStatus(null)
+                    .toStatus(ApplicationStatus.APPLICATION_RECEIVED)
+                    .changedBy(operator2).notes("Initial submission").build());
+            statusHistoryRepository.save(StatusHistory.builder()
+                    .application(app2)
+                    .fromStatus(ApplicationStatus.APPLICATION_RECEIVED)
+                    .toStatus(ApplicationStatus.UNDER_REVIEW)
+                    .changedBy(officer).notes("Reviewed and queued for site visit audit").build());
+            statusHistoryRepository.save(StatusHistory.builder()
+                    .application(app2)
+                    .fromStatus(ApplicationStatus.UNDER_REVIEW)
+                    .toStatus(ApplicationStatus.SITE_VISIT_SCHEDULED)
+                    .changedBy(officer).notes("Site visit scheduled for subsidy verification").build());
 
-            // Seed checklist items for app2
-            List<ChecklistItem> checklistItems = List.of(
-                    ChecklistItem.builder().application(app2).itemCode("FIRE_01")
-                            .itemTitle("Fire Suppression System").sortOrder(1)
-                            .itemDescription("Verify automatic fire suppression system is installed and certified")
-                            .status(ChecklistItemStatus.PENDING).build(),
-                    ChecklistItem.builder().application(app2).itemCode("FIRE_02")
-                            .itemTitle("Emergency Exit Signage").sortOrder(2)
-                            .itemDescription("All emergency exits clearly marked with illuminated signage")
-                            .status(ChecklistItemStatus.PENDING).build(),
-                    ChecklistItem.builder().application(app2).itemCode("CHEM_01")
-                            .itemTitle("Chemical Storage Segregation").sortOrder(3)
-                            .itemDescription("Incompatible chemicals stored separately per safety regulations")
-                            .status(ChecklistItemStatus.PENDING).build(),
-                    ChecklistItem.builder().application(app2).itemCode("CHEM_02")
-                            .itemTitle("Spill Containment").sortOrder(4)
-                            .itemDescription("Adequate spill containment measures in all storage areas")
-                            .status(ChecklistItemStatus.PENDING).build(),
-                    ChecklistItem.builder().application(app2).itemCode("ELEC_01")
-                            .itemTitle("Electrical Safety Certificate").sortOrder(5)
-                            .itemDescription("Valid electrical safety certificate from licensed contractor")
-                            .status(ChecklistItemStatus.PENDING).build()
-            );
-            checklistItemRepository.saveAll(checklistItems);
-
-            // ── Application 3: Approved (terminal state) ──────────
             Application app3 = applicationRepository.save(Application.builder()
-                    .referenceNumber("LIC-2025-DEMO03")
+                    .referenceNumber("LIC-2026-HFAA01")
                     .operator(operator)
                     .assignedOfficer(officer)
-                    .status(ApplicationStatus.APPROVED)
-                    .businessName("ACME Retail Shop")
-                    .businessType("Retail")
-                    .businessAddress("789 Bugis Street, Singapore 188867")
+                    .status(ApplicationStatus.UNDER_REVIEW)
+                    .businessName("Silver Years Sheltered Home")
+                    .licensingTrack(LicensingTrack.HFAA)
+                    .businessType("Home for the Aged")
+                    .businessAddress("55 Lorong Chencharu, Singapore 769123")
                     .contactPhone("+65 9123 4567")
-                    .activityDescription("General retail merchandise")
+                    .activityDescription("HFAA inspection readiness with staffing and sanitation controls")
                     .submissionRound(1)
                     .build());
+            statusHistoryRepository.save(StatusHistory.builder()
+                    .application(app3).fromStatus(null)
+                    .toStatus(ApplicationStatus.APPLICATION_RECEIVED)
+                    .changedBy(operator).notes("Initial submission").build());
+            statusHistoryRepository.save(StatusHistory.builder()
+                    .application(app3)
+                    .fromStatus(ApplicationStatus.APPLICATION_RECEIVED)
+                    .toStatus(ApplicationStatus.UNDER_REVIEW)
+                    .changedBy(officer).notes("Pending unannounced monitoring visit").build());
+
+            Application app4 = applicationRepository.save(Application.builder()
+                    .referenceNumber("LIC-2026-CHM01")
+                    .operator(operator2)
+                    .assignedOfficer(officer)
+                    .status(ApplicationStatus.APPLICATION_RECEIVED)
+                    .businessName("NurtureNest Childminding Home")
+                    .licensingTrack(LicensingTrack.CHILDMINDING)
+                    .businessType("Childminding Pilot")
+                    .businessAddress("302 Yishun Ring Road, Singapore 760302")
+                    .contactPhone("+65 8765 4321")
+                    .activityDescription("Home assessment for infant-care regulatory sandbox")
+                    .submissionRound(1)
+                    .build());
+            statusHistoryRepository.save(StatusHistory.builder()
+                    .application(app4).fromStatus(null)
+                    .toStatus(ApplicationStatus.APPLICATION_RECEIVED)
+                    .changedBy(operator2).notes("Initial submission").build());
 
             log.info("═══════════════════════════════════════════════════════════");
-            log.info("  Demo data seeded. Login credentials:");
+            log.info("  Demo data reset and seeded for tracks: ECDC, SCFA, HFAA, CHILDMINDING");
             log.info("  Officer : officer@gov.sg  / password");
             log.info("  Operator: operator@acme.sg / password");
             log.info("  Operator: operator2@beta.sg / password");

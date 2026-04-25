@@ -120,6 +120,7 @@ export default function OperatorApplicationPage() {
       </header>
       <section className="card">
         <h3>{app.referenceNumber} <span className={`badge ${statusClass(app.statusLabel)}`}>{app.statusLabel}</span></h3>
+        <p>Track: {app.licensingTrack || "-"}</p>
         <p>Submission Round #{app.submissionRound}</p>
         <p><strong>Final Outcome:</strong> {app.statusLabel === "Approved" || app.statusLabel === "Rejected" ? app.statusLabel : "In Progress"}</p>
         {err ? <div className="alert-box error">{err}</div> : null}
