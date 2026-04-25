@@ -9,6 +9,11 @@ function formatTs(value) {
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
 }
 
+function normalizeOfficerReturnReason(text) {
+  if (!text) return "";
+  return String(text).replace(/^\[Document Return Required\]\s*/i, "").trim();
+}
+
 export default function OperatorApplicationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -177,6 +182,10 @@ export default function OperatorApplicationPage() {
       .filter((c) => c.targetDocumentId && c.resolved === false)
       .map((c) => c.targetDocumentId),
   );
+  const unresolvedOfficerReasonByDocId = new Map();
+  (app.officerComments || [])
+    .filter((c) => c.targetDocumentId && c.resolved === false)
+    .forEach((c) => unresolvedOfficerReasonByDocId.set(c.targetDocumentId, c.commentText || ""));
   const issueDocuments = (app.documents || []).filter(
     (d) => unresolvedIssueDocIds.has(d.id) || d.aiVerificationStatus === "FLAGGED" || d.aiVerificationStatus === "FAILED",
   );
@@ -268,27 +277,46 @@ export default function OperatorApplicationPage() {
           </p>
         ) : null}
         {issueDocuments.length ? (
-          <table style={{ tableLayout: "fixed" }}>
-            <thead><tr><th>File</th><th>AI Verification</th><th>Notes</th><th>Action</th></tr></thead>
+          <div style={{ width: "100%", maxWidth: "115%", overflowX: "auto" }}>
+            <table style={{ tableLayout: "fixed", width: "100%", minWidth: 980 }}>
+              <thead><tr><th style={{ width: "30%" }}>File</th><th style={{ width: "20%" }}>AI Verification</th><th style={{ width: "30%" }}>Notes</th><th style={{ width: "20%" }}>Action</th></tr></thead>
             <tbody>
               {issueDocuments.map((d) => (
                 <tr key={`issue-${d.id}`}>
-                  <td>{d.originalFileName}</td>
+                  {(() => {
+                    const officerReturned = unresolvedIssueDocIds.has(d.id);
+                    const displayStatus = officerReturned
+                      ? "PENDING_OFFICER_VERIFICATION"
+                      : (d.aiVerificationStatus || "PENDING");
+                    const displayNotes = officerReturned
+                      ? (normalizeOfficerReturnReason(unresolvedOfficerReasonByDocId.get(d.id)) || "Returned by officer for correction.")
+                      : (d.aiVerificationNotes || "-");
+                    return (
+                      <>
+                  <td style={{ wordBreak: "break-word" }}>{d.originalFileName}</td>
                   <td>
                     <div className="hint" style={{ marginBottom: 4 }}>
                       {d.documentCategory || "-"}
                     </div>
-                    <span className={`badge ${d.aiVerificationStatus === "PASSED" ? "badge-green" : d.aiVerificationStatus === "FLAGGED" ? "badge-red" : "badge-amber"}`}>
-                      {d.aiVerificationStatus || "PENDING"}
+                    <span className={`badge ${
+                      displayStatus === "PASSED"
+                        ? "badge-green"
+                        : displayStatus === "PENDING_OFFICER_VERIFICATION"
+                          ? "badge-purple"
+                          : displayStatus === "FLAGGED"
+                            ? "badge-red"
+                            : "badge-amber"
+                    }`}>
+                      {displayStatus}
                     </span>
                   </td>
                   <td>
-                    <div style={{ maxWidth: 260, whiteSpace: "normal", wordBreak: "break-word" }}>
-                      {d.aiVerificationNotes || "-"}
+                    <div style={{ whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.3 }}>
+                      {displayNotes}
                     </div>
                   </td>
                   <td>
-                    <div style={{ maxWidth: 230 }}>
+                    <div style={{ width: "100%" }}>
                       <input
                         className="field"
                         style={{ width: "100%", padding: "6px 8px", fontSize: 12, marginBottom: 8 }}
@@ -306,10 +334,14 @@ export default function OperatorApplicationPage() {
                       </button>
                     </div>
                   </td>
+                      </>
+                    );
+                  })()}
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         ) : <p className="hint">No unresolved document issues at this time.</p>}
         {canResubmit ? (
           <>

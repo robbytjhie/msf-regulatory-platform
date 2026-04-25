@@ -6,17 +6,27 @@ import com.regulatory.platform.dto.response.ApiResponse;
 import com.regulatory.platform.dto.response.ApplicationDetailResponse;
 import com.regulatory.platform.dto.response.ApplicationSummaryResponse;
 import com.regulatory.platform.dto.response.ChecklistItemResponse;
+import com.regulatory.platform.entity.Document;
 import com.regulatory.platform.entity.User;
+import com.regulatory.platform.exception.ResourceNotFoundException;
+import com.regulatory.platform.repository.DocumentRepository;
 import com.regulatory.platform.repository.UserRepository;
 import com.regulatory.platform.service.ApplicationService;
 import com.regulatory.platform.service.ChecklistService;
+import com.regulatory.platform.service.LocalDocumentStorageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 @RestController
@@ -26,6 +36,8 @@ public class OfficerController {
 
     private final ApplicationService applicationService;
     private final ChecklistService checklistService;
+    private final DocumentRepository documentRepository;
+    private final LocalDocumentStorageService localDocumentStorageService;
     private final UserRepository userRepository;
 
     // UC2: Dashboard — all applications
@@ -90,6 +102,28 @@ public class OfficerController {
         User officer = resolveUser(principal);
         checklistService.submitChecklist(id, request, officer);
         return ResponseEntity.ok(ApiResponse.ok("Checklist submitted", null));
+    }
+
+    @GetMapping("/documents/{documentId}/download")
+    public ResponseEntity<UrlResource> downloadDocument(
+            @PathVariable Long documentId,
+            @AuthenticationPrincipal UserDetails principal) throws MalformedURLException {
+        resolveUser(principal);
+        Document doc = documentRepository.findByIdWithApplicationAndOperator(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+        Path filePath = localDocumentStorageService.resolve(doc.getStoredFileName());
+        if (!Files.exists(filePath)) {
+            throw new ResourceNotFoundException("Stored file not found for document: " + documentId);
+        }
+        UrlResource resource = new UrlResource(filePath.toUri());
+        String filename = doc.getOriginalFileName() != null ? doc.getOriginalFileName() : ("document-" + documentId);
+        String contentType = (doc.getContentType() != null && !doc.getContentType().isBlank())
+                ? doc.getContentType()
+                : MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType(contentType))
+                .body(resource);
     }
 
     private User resolveUser(UserDetails principal) {

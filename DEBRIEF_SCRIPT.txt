@@ -1,0 +1,50 @@
+Regulatory and Licensing Platform - Debrief Script (1 Page)
+
+1) Scope and approach
+- I scoped this as an MVP that demonstrates the full end-to-end lifecycle for operator submission/resubmission, officer review, and site-checklist clarification loops.
+- I prioritized workflow safety and traceability over visual polish: strict status transitions, role isolation, and auditable status/comment history.
+- Where requirements were ambiguous, I documented assumptions in SCOPE.md and kept implementation decisions explicit.
+
+2) What I implemented
+- Use Case 1:
+  - Operator submits application details and uploads supporting documents by track/category.
+  - Document AI status and notes are visible.
+  - Returned/flagged docs can be replaced and re-validated.
+  - Resubmission is enabled only in resubmission states and preserves prior data.
+- Use Case 2:
+  - Officer sees full application details, AI outcomes, timeline, and contextual comments.
+  - Officer can return specific documents with targeted reasons.
+  - Status updates are validated by server-side transition rules.
+- Use Case 3:
+  - Checklist opens after site-visit scheduling.
+  - Officer can save draft and submit.
+  - Operator only sees checklist items requiring clarification.
+  - Clarification responses are tracked with history.
+
+3) Production-readiness decisions
+- Server-side state machine in StatusTransitionService prevents invalid transitions.
+- Role-based access controls are enforced in Spring Security and endpoint design.
+- Error handling returns user-readable frontend messages.
+- Checklist submit now blocks if any item remains PENDING to prevent accidental auto-route to approval.
+- Document storage now writes local files in backend/local-documents and supports officer download/open endpoint.
+
+4) AI usage (how I used tools)
+- I used AI assistants to accelerate boilerplate and repetitive refactors, then manually verified and corrected business-critical logic.
+- Typical prompt style: provide exact entity/state context, expected constraints, and output format.
+- I verified generated code by:
+  - building backend/frontend after each substantive change,
+  - checking state transitions against mapping tables,
+  - testing key UX loops (submit -> review -> return -> resubmit).
+- I discarded/reworked AI output when it conflicted with workflow rules or real UI behavior.
+
+5) Key trade-offs and known gaps
+- Local file storage is implemented for MVP, but no external object storage (S3/GCS) yet.
+- AI verification is metadata-based (filename/type/size/category), not OCR/full-content analysis.
+- Real-time updates use polling, not WebSocket/SSE push.
+- Notification delivery is in-app/log driven; no email gateway integration yet.
+
+6) What I would do next
+- Replace local document storage with object storage + signed URLs.
+- Add integration tests covering role isolation and status transitions end-to-end.
+- Add SSE/WebSocket for immediate dashboard updates.
+- Expand checklist templates/configuration per licensing track via admin-maintained metadata.

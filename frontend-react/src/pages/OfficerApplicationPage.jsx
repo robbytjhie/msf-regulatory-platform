@@ -65,17 +65,6 @@ function formatTs(value) {
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
 }
 
-function simulatedDocumentPreviewUrl(doc) {
-  const content = [
-    "Simulated document preview",
-    `File: ${doc?.originalFileName || "-"}`,
-    `Category: ${doc?.documentCategory || "-"}`,
-    `AI Status: ${doc?.aiVerificationStatus || "PENDING"}`,
-    `AI Notes: ${doc?.aiVerificationNotes || "-"}`,
-  ].join("\n");
-  return `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`;
-}
-
 export default function OfficerApplicationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -214,6 +203,24 @@ export default function OfficerApplicationPage() {
     setOk(`Marked "${doc.originalFileName}" as return required. Add your reason in the comment box.`);
   };
 
+  const openStoredDocument = async (documentId) => {
+    try {
+      const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+      const response = await fetch(`/api/officer/documents/${documentId}/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) {
+        throw new Error("Failed to open stored document.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) {
+      setErr(e.message || "Unable to open document.");
+    }
+  };
+
   if (!app) return <main className="app-shell">{err ? <p className="error">{err}</p> : <p>Loading...</p>}</main>;
   const currentStatus = normalizeInternalStatus(app.internalStatus);
   const allowedTransitions = transitionMap[currentStatus] || [];
@@ -331,11 +338,12 @@ export default function OfficerApplicationPage() {
                   <tr key={d.id}>
                     <td>{idx + 1}</td>
                     <td>
-                      <a
-                        href={simulatedDocumentPreviewUrl(d)}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Open document preview"
+                      <a href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          openStoredDocument(d.id);
+                        }}
+                        title="Open stored document"
                       >
                         {d.originalFileName}
                       </a>

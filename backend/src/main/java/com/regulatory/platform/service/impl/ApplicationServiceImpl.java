@@ -20,6 +20,7 @@ import com.regulatory.platform.exception.InvalidStatusTransitionException;
 import com.regulatory.platform.repository.*;
 import com.regulatory.platform.service.ApplicationService;
 import com.regulatory.platform.service.DocumentVerificationService;
+import com.regulatory.platform.service.LocalDocumentStorageService;
 import com.regulatory.platform.service.NotificationService;
 import com.regulatory.platform.service.StatusTransitionService;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final StatusTransitionService statusTransitionService;
     private final NotificationService notificationService;
     private final DocumentVerificationService documentVerificationService;
+    private final LocalDocumentStorageService localDocumentStorageService;
     private final ChecklistItemRepository checklistItemRepository;
 
     // ── UC1: Operator Submission ──────────────────────────────────
@@ -76,7 +78,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 Document doc = Document.builder()
                         .application(application)
                         .originalFileName(docReq.originalFileName())
-                        .storedFileName("simulated-" + UUID.randomUUID())
+                        .storedFileName("pending")
                         .contentType(docReq.contentType() != null ? docReq.contentType() : "application/octet-stream")
                         .fileSizeBytes(docReq.fileSizeBytes())
                         .documentCategory(docReq.documentCategory())
@@ -84,6 +86,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                         .aiVerificationStatus(Document.AiVerificationStatus.PENDING)
                         .aiVerificationNotes("Verification queued")
                         .build();
+                doc.setStoredFileName(localDocumentStorageService.writePlaceholder(doc, "initial submission"));
                 application.getDocuments().add(doc);
             }
             application = applicationRepository.save(application);
@@ -225,7 +228,6 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .orElseThrow(() -> new InvalidRequestException("Document not found for this application: " + documentId));
 
         doc.setOriginalFileName(request.originalFileName());
-        doc.setStoredFileName("simulated-" + UUID.randomUUID());
         doc.setContentType(request.contentType() != null && !request.contentType().isBlank()
                 ? request.contentType()
                 : "application/octet-stream");
@@ -233,6 +235,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         doc.setSubmissionRound(application.getSubmissionRound());
         doc.setAiVerificationStatus(Document.AiVerificationStatus.PENDING);
         doc.setAiVerificationNotes("Re-upload received. Verification queued.");
+        doc.setStoredFileName(localDocumentStorageService.writePlaceholder(doc, "operator re-upload"));
         documentRepository.save(doc);
         documentVerificationService.startSimulatedVerificationForDocument(doc.getId());
         return DocumentResponse.from(doc);
