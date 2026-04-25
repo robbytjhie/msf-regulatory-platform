@@ -109,13 +109,12 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
+        # nginx master drops to worker user; drop ALL breaks startup (exit 1). Pod seccomp still applies.
         - name: frontend-react
           image: msf/frontend-react:latest
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
           ports:
             - containerPort: 80
 ---
