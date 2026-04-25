@@ -8,36 +8,86 @@ Manifests live in **`infra/k8s/`** (main file: `msf.yaml`). Images must be named
 - `msf/auth-node:latest`
 - `msf/frontend-react:latest`
 
+**Pick one track and stay on it:** **Track A — Ubuntu / WSL (bash)** or **Track B — Windows (PowerShell)**. Do not mix Docker hosts (see [WSL vs Windows](#wsl-vs-windows-important)).
+
+---
+
+## Contents
+
+| Section | What |
+|--------|------|
+| [Choose your environment](#choose-your-environment) | Ubuntu vs Windows, paths |
+| [Part 1 — Prerequisites](#part-1--prerequisites-one-time-per-machine) | Docker, Minikube, kubectl, clone |
+| [Part 2 — First-time Minikube cluster](#part-2--first-time-minikube-cluster) | Same commands in both shells |
+| [Part 3 — First-time deploy of MSF](#part-3--first-time-deploy-of-msf-to-minikube) | **Split:** Track A (bash) · Track B (PowerShell) |
+| [Part 4 — Day-to-day pull and rebuild](#part-4--day-to-day-pull-latest-code-and-rebuild) | **Split:** Track A · Track B |
+| [Part 5 — Check cluster / pods / logs](#part-5--check-cluster-namespace-and-workloads) | **Same** kubectl (both tracks) |
+| [Part 6 — Troubleshooting](#part-6--troubleshooting-and-cleanup) | Mostly same; docker-env called out per track |
+| [Part 7 — Leave Minikube Docker mode](#part-7--optional-leave-minikube-docker-mode) | **Split:** Track A · Track B |
+| [Part 8 — One-shot script (Windows)](#part-8--one-shot-script-windows-only) | `deploy-minikube.ps1` |
+| [Part 9 — Quick reference](#part-9--quick-reference-table) | Table |
+| [Part 10 — Nginx capabilities gotcha](#part-10--known-gotcha-nginx--capabilities) | Why frontend needed YAML tweak |
+
+---
+
+## Choose your environment
+
+| | **Track A — Ubuntu / WSL (bash)** | **Track B — Windows (PowerShell)** |
+|---|-----------------------------------|--------------------------------------|
+| **Shell** | Terminal in Ubuntu or WSL | Windows PowerShell (or Windows Terminal → PowerShell) |
+| **Typical repo path** | `~/msf` | `D:\MSF` (adjust drive/folder) |
+| **Docker** | Docker in WSL / Docker Desktop **WSL integration** | Docker Desktop (Windows engine) |
+| **Point Docker at Minikube** | `eval "$(minikube -p minikube docker-env)"` | `minikube -p minikube docker-env --shell powershell \| Invoke-Expression` |
+| **Open app URL** | `minikube service … --url` or `echo "http://$(minikube ip):30080"` | Same Minikube commands work in PowerShell |
+
+Everything that is **`kubectl`** or **`minikube start`** is the same in both tracks unless noted.
+
+### WSL vs Windows (important)
+
+- Minikube + Docker **inside WSL** uses **WSL’s Docker**.
+- Minikube + **Windows PowerShell** uses **Docker Desktop’s Windows engine**.
+
+**Do not mix:** building images in Windows Docker but applying from WSL Minikube (or the reverse) causes **`ImagePullBackOff` / `ErrImagePull`**. Use one track for **start**, **build**, and **apply**.
+
 ---
 
 ## Part 1 — Prerequisites (one time per machine)
 
 1. **Install Docker** and ensure it runs:
-   - **Windows:** Docker Desktop.
-   - **Linux / WSL Ubuntu:** Docker Engine; in WSL, enable Docker Desktop **WSL integration** for your distro, or install Docker inside WSL.
+   - **Track B (Windows):** Docker Desktop.
+   - **Track A (Ubuntu / WSL):** Docker Engine, or Docker Desktop with **WSL integration** enabled for your distro.
 
-   Verify:
+   Verify (same command both tracks):
 
    ```bash
    docker ps
    ```
 
-2. **Install Minikube**  
-   Follow: https://minikube.sigs.k8s.io/docs/start/
+2. **Install Minikube** — https://minikube.sigs.k8s.io/docs/start/
 
-3. **Install kubectl**  
-   Follow: https://kubernetes.io/docs/tasks/tools/
+3. **Install kubectl** — https://kubernetes.io/docs/tasks/tools/
 
-4. **Clone the repo** (or use your existing folder):
+4. **Clone the repo** (or use your existing folder).
+
+   **Track A (bash):**
 
    ```bash
-   git clone https://github.com/robbytjhie/msf-regulatory-platform.git msf
-   cd msf
+   git clone https://github.com/robbytjhie/msf-regulatory-platform.git ~/msf
+   cd ~/msf
+   ```
+
+   **Track B (PowerShell):**
+
+   ```powershell
+   git clone https://github.com/robbytjhie/msf-regulatory-platform.git D:\MSF
+   cd D:\MSF
    ```
 
 ---
 
 ## Part 2 — First-time Minikube cluster
+
+Commands are the same in **bash** or **PowerShell**.
 
 ### 2.1 Start the cluster (Docker driver recommended)
 
@@ -54,11 +104,11 @@ kubectl config current-context
 
 You want `current-context` to be **`minikube`** when working with this cluster.
 
-### 2.2 If `minikube status` fails with SSH errors (Linux/WSL)
+### 2.2 If `minikube status` fails with SSH errors (common on Linux/WSL)
 
 Example: `ssh: unable to authenticate ... no supported methods remain`
 
-The local Minikube profile/VM is broken or was created in a different environment. Reset:
+The local Minikube profile is broken or from another environment. Reset:
 
 ```bash
 minikube delete
@@ -72,97 +122,89 @@ minikube delete --all
 minikube start --driver=docker
 ```
 
-### 2.3 WSL vs Windows (important)
-
-- Minikube + Docker **inside WSL** uses **WSL’s Docker**.
-- Minikube + **Windows PowerShell** uses **Docker Desktop’s Windows engine**.
-
-**Do not mix:** if you build images in Windows Docker but apply manifests from WSL Minikube (or the reverse), you will get **`ImagePullBackOff` / `ErrImagePull`**. Pick **one** environment for: `minikube start`, `docker build`, and `kubectl apply`.
-
 ---
 
 ## Part 3 — First-time deploy of MSF to Minikube
 
-All commands assume repo root `msf/` (adjust path if yours differs).
+Complete steps for each track (repository root = where `backend/`, `frontend-react/`, `infra/` live).
 
-### 3.1 Point Docker at Minikube’s Docker daemon
+---
 
-Images must be built **into the same Docker** Minikube uses.
-
-**bash (Linux / WSL):**
+### Track A — Ubuntu / WSL (bash)
 
 ```bash
+cd ~/msf
+
+# 1) Use Minikube’s Docker (required so the cluster sees your images)
 eval "$(minikube -p minikube docker-env)"
-```
 
-**PowerShell (Windows):**
-
-```powershell
-minikube -p minikube docker-env --shell powershell | Invoke-Expression
-```
-
-Keep this shell for builds, or run `eval` / `Invoke-Expression` again in a new shell before building.
-
-### 3.2 Build the three images
-
-From the **repository root**:
-
-```bash
-cd ~/msf   # or D:\MSF on Windows — your path
-
+# 2) Build images
 docker build -t msf/backend:latest ./backend
 docker build -t msf/auth-node:latest ./auth-node
 docker build -t msf/frontend-react:latest ./frontend-react
-```
 
-### 3.3 Apply Kubernetes manifests
-
-```bash
+# 3) Deploy
 kubectl apply -f infra/k8s/msf.yaml
-```
 
-This creates namespace **`msf`** and Deployments/Services for **backend**, **auth-node**, **frontend-react**.
-
-### 3.4 Wait for rollouts
-
-```bash
+# 4) Wait for rollouts
 kubectl -n msf rollout status deploy/backend
 kubectl -n msf rollout status deploy/auth-node
 kubectl -n msf rollout status deploy/frontend-react
-```
 
-### 3.5 Open the app in a browser
-
-**Option A — let Minikube print the URL:**
-
-```bash
+# 5) Open URL (pick one)
 minikube service frontend-react -n msf --url
-```
-
-**Option B — NodePort from manifest (`30080`):**
-
-```bash
+# or fixed NodePort from msf.yaml:
 echo "http://$(minikube ip):30080"
 ```
 
-Login path (if root does not redirect):
+Login (if needed): `http://<host>:<port>/login`
 
-- `http://<that-host>:<port>/login`
+---
+
+### Track B — Windows (PowerShell)
+
+```powershell
+cd D:\MSF
+
+# 1) Use Minikube’s Docker
+minikube -p minikube docker-env --shell powershell | Invoke-Expression
+
+# 2) Build images
+docker build -t msf/backend:latest .\backend
+docker build -t msf/auth-node:latest .\auth-node
+docker build -t msf/frontend-react:latest .\frontend-react
+
+# 3) Deploy
+kubectl apply -f infra\k8s\msf.yaml
+
+# 4) Wait for rollouts
+kubectl -n msf rollout status deploy/backend
+kubectl -n msf rollout status deploy/auth-node
+kubectl -n msf rollout status deploy/frontend-react
+
+# 5) Open URL (pick one)
+minikube service frontend-react -n msf --url
+# or NodePort 30080:
+Write-Host ("http://{0}:30080" -f (minikube ip))
+```
+
+Login (if needed): `http://<host>:<port>/login`
 
 ---
 
 ## Part 4 — Day-to-day: pull latest code and rebuild
 
-Use the **same** machine context (WSL or Windows) you used for the first deploy.
+Use the **same track** you used for the first deploy (same Docker + Minikube).
+
+---
+
+### Track A — Ubuntu / WSL (bash)
 
 ```bash
 cd ~/msf
 git pull origin main
 
-# Always use Minikube’s Docker before building
-eval "$(minikube -p minikube docker-env)"    # bash / WSL
-# OR PowerShell:
-# minikube -p minikube docker-env --shell powershell | Invoke-Expression
+eval "$(minikube -p minikube docker-env)"
 
 docker build -t msf/backend:latest ./backend
 docker build -t msf/auth-node:latest ./auth-node
@@ -170,7 +212,6 @@ docker build -t msf/frontend-react:latest ./frontend-react
 
 kubectl apply -f infra/k8s/msf.yaml
 
-# Pick up new images without changing YAML
 kubectl -n msf rollout restart deploy/backend
 kubectl -n msf rollout restart deploy/auth-node
 kubectl -n msf rollout restart deploy/frontend-react
@@ -180,11 +221,50 @@ kubectl -n msf rollout status deploy/auth-node
 kubectl -n msf rollout status deploy/frontend-react
 ```
 
-If only the frontend changed, you can restart **only** `deploy/frontend-react`.
+If only the frontend changed, restart only:
+
+```bash
+kubectl -n msf rollout restart deploy/frontend-react
+kubectl -n msf rollout status deploy/frontend-react
+```
+
+---
+
+### Track B — Windows (PowerShell)
+
+```powershell
+cd D:\MSF
+git pull origin main
+
+minikube -p minikube docker-env --shell powershell | Invoke-Expression
+
+docker build -t msf/backend:latest .\backend
+docker build -t msf/auth-node:latest .\auth-node
+docker build -t msf/frontend-react:latest .\frontend-react
+
+kubectl apply -f infra\k8s\msf.yaml
+
+kubectl -n msf rollout restart deploy/backend
+kubectl -n msf rollout restart deploy/auth-node
+kubectl -n msf rollout restart deploy/frontend-react
+
+kubectl -n msf rollout status deploy/backend
+kubectl -n msf rollout status deploy/auth-node
+kubectl -n msf rollout status deploy/frontend-react
+```
+
+If only the frontend changed:
+
+```powershell
+kubectl -n msf rollout restart deploy/frontend-react
+kubectl -n msf rollout status deploy/frontend-react
+```
 
 ---
 
 ## Part 5 — Check cluster, namespace, and workloads
+
+**Same commands in Track A and Track B** (bash or PowerShell).
 
 ### 5.1 Cluster / Minikube
 
@@ -253,13 +333,27 @@ kubectl logs -n msf deploy/backend -f
 
 ### 6.1 Pod stuck `ImagePullBackOff` / `ErrImagePull`
 
-- Run **`eval "$(minikube docker-env)"`** (bash) in the shell you use to **`docker build`**.
-- Rebuild the image tag exactly as in `msf.yaml` (e.g. `msf/frontend-react:latest`).
-- Restart the deployment:
+Re-point Docker at Minikube, then rebuild and restart:
 
-  ```bash
-  kubectl -n msf rollout restart deploy/frontend-react
-  ```
+**Track A:**
+
+```bash
+eval "$(minikube -p minikube docker-env)"
+cd ~/msf
+docker build -t msf/frontend-react:latest ./frontend-react
+kubectl -n msf rollout restart deploy/frontend-react
+```
+
+**Track B:**
+
+```powershell
+minikube -p minikube docker-env --shell powershell | Invoke-Expression
+cd D:\MSF
+docker build -t msf/frontend-react:latest .\frontend-react
+kubectl -n msf rollout restart deploy/frontend-react
+```
+
+Use the correct image name for whichever service failed (`backend` / `auth-node` / `frontend-react`).
 
 ### 6.2 Pod `CrashLoopBackOff` / `Error` (image pulled but exits)
 
@@ -268,41 +362,41 @@ kubectl describe pod -n msf -l app=frontend-react
 kubectl logs -n msf -l app=frontend-react --tail=200
 ```
 
-Fix the app or manifest, rebuild if needed, restart rollout.
+Fix the app or manifest, rebuild on **your track**, restart rollout.
 
 ### 6.3 Rollout stuck (“old replicas pending termination” / progress deadline)
-
-See what is running:
 
 ```bash
 kubectl get pods -n msf
 kubectl get rs -n msf
 ```
 
-Force-delete a **stuck** pod name:
+Force-delete a stuck pod (replace `PODNAME`):
 
 ```bash
 kubectl delete pod PODNAME -n msf --force --grace-period=0
 ```
 
-Or reset **one** deployment:
+Or reset one deployment:
 
 ```bash
 kubectl -n msf delete deployment frontend-react
 kubectl apply -f infra/k8s/msf.yaml
 ```
 
-### 6.4 Remove only the MSF namespace (cluster keeps running)
+(On Track B you may use `infra\k8s\msf.yaml` in PowerShell.)
+
+### 6.4 Remove only the `msf` namespace (cluster keeps running)
 
 ```bash
 kubectl delete namespace msf
 ```
 
-To redeploy: `kubectl apply -f infra/k8s/msf.yaml` again (and ensure images exist in Minikube Docker).
+Redeploy: `kubectl apply -f …/msf.yaml` again and ensure images exist in Minikube’s Docker (**Part 3**).
 
 ### 6.5 Remove the whole Minikube cluster (“delete the node”)
 
-This deletes the **local Kubernetes cluster** Minikube created (not your Git repo):
+Deletes the **local** cluster Minikube created (not your Git repo):
 
 ```bash
 minikube delete
@@ -314,7 +408,7 @@ Or all profiles:
 minikube delete --all
 ```
 
-Then `minikube start --driver=docker` and repeat **Part 3** (docker-env, build, apply).
+Then `minikube start --driver=docker` and repeat **[Part 3](#part-3--first-time-deploy-of-msf-to-minikube)** for your track.
 
 ### 6.6 Stop Minikube without deleting
 
@@ -326,26 +420,34 @@ minikube stop
 
 ## Part 7 — Optional: leave Minikube Docker mode
 
-If your shell was pointed at Minikube’s Docker and you want your normal Docker back, open a **new terminal**, or (bash):
+After `docker-env`, normal `docker` commands target **Minikube’s** daemon. To return your default Docker:
+
+**Track A (bash):**
 
 ```bash
 eval "$(minikube -p minikube docker-env -u)"
 ```
 
-(If `-u` is unsupported on your version, a new shell is enough.)
+If `-u` is unsupported on your Minikube version, open a **new** terminal.
+
+**Track B (PowerShell):**
+
+Open a **new** PowerShell window (simplest), or check Minikube docs for “unset” in your version.
 
 ---
 
-## Part 8 — Helper script (Windows)
+## Part 8 — One-shot script (Windows only)
 
-From **`infra/k8s`**:
+From **`infra\k8s`** on **Track B**:
 
 ```powershell
 cd D:\MSF\infra\k8s
 .\deploy-minikube.ps1
 ```
 
-The script: sets PowerShell docker-env, builds three images with paths `../../backend`, etc., applies `msf.yaml`, and waits for rollouts. On **Linux/WSL**, use the **manual** commands in Part 3–4 instead (or translate `docker-env` to bash).
+The script sets PowerShell docker-env, builds `../../backend`, `../../auth-node`, `../../frontend-react`, applies `msf.yaml`, and waits for rollouts.
+
+**Track A:** use the **[Track A — Part 3](#track-a--ubuntu--wsl-bash)** block instead (no PowerShell script in-repo for bash).
 
 ---
 
@@ -359,10 +461,10 @@ The script: sets PowerShell docker-env, builds three images with paths `../../ba
 | Pod details + events | `kubectl describe pod -n msf POD` |
 | App logs | `kubectl logs -n msf deploy/DEPLOY --tail=100` |
 | Open UI URL | `minikube service frontend-react -n msf --url` |
-| Reset Minikube completely | `minikube delete` then `minikube start` |
+| Reset Minikube completely | `minikube delete` then `minikube start --driver=docker` |
 
 ---
 
 ## Part 10 — Known gotcha (nginx + capabilities)
 
-The **frontend** image is **nginx**. Dropping **all** Linux capabilities in the container `securityContext` can make nginx exit immediately (**exit code 1**). This repo’s `msf.yaml` is adjusted so the frontend can start while keeping other hardening where possible. If you fork the manifest, avoid `capabilities: drop: ["ALL"]` on nginx unless you switch to a non-root + high-port pattern.
+The **frontend** image is **nginx**. Dropping **all** Linux capabilities in the container `securityContext` can make nginx exit immediately (**exit code 1**). This repo’s `msf.yaml` relaxes **only** the frontend container caps so nginx can start; pod-level `seccompProfile` remains. If you fork the manifest, avoid `capabilities: drop: ["ALL"]` on nginx unless you use non-root + high port.

@@ -50,7 +50,7 @@ Open `http://localhost:3000`.
 
 ## Minikube Deploy
 
-**Full step-by-step guide** (first-time setup, pull/rebuild, pods, logs, troubleshooting, cluster reset): **`docs/MINIKUBE.md`**.
+**Full step-by-step guide** (first-time setup, pull/rebuild, pods, logs, troubleshooting, cluster reset): **`docs/MINIKUBE.md`** — includes **separate copy-paste tracks** for **Ubuntu / WSL (bash)** and **Windows PowerShell**.
 
 Quick path (Windows PowerShell):
 
