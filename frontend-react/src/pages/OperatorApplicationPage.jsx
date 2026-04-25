@@ -248,7 +248,7 @@ export default function OperatorApplicationPage() {
               </p>
             </div>
             <table>
-              <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th></tr></thead>
+              <thead><tr><th>File</th><th>Category</th><th>Verification Status</th><th>Notes</th></tr></thead>
               <tbody>
                 {app.documents.map((d) => (
                   <tr key={d.id}>
@@ -275,7 +275,7 @@ export default function OperatorApplicationPage() {
         {issueDocuments.length ? (
           <div style={{ width: "100%", overflowX: "auto" }}>
             <table style={{ tableLayout: "fixed", width: "100%", minWidth: 980 }}>
-              <thead><tr><th style={{ width: "30%" }}>File</th><th style={{ width: "20%" }}>AI Verification</th><th style={{ width: "30%" }}>Notes</th><th style={{ width: "20%" }}>Action</th></tr></thead>
+              <thead><tr><th style={{ width: "30%" }}>File</th><th style={{ width: "20%" }}>Verification Status</th><th style={{ width: "30%" }}>Notes</th><th style={{ width: "20%" }}>Action</th></tr></thead>
             <tbody>
               {issueDocuments.map((d) => (
                 <tr key={`issue-${d.id}`}>
