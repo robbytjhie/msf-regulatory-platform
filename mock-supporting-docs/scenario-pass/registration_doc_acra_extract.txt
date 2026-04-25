@@ -1,0 +1,6 @@
+UEN: 202612345A
+Entity: Little Sprouts Preschool Pte. Ltd.
+Registered Address: 12 Fernvale Street, Singapore 798123
+Registration Type: Company Limited by Shares
+Status: Live
+Issued Date: 2026-01-15

@@ -24,7 +24,15 @@ export default function OperatorApplicationPage() {
   const [nowTick, setNowTick] = useState(() => Date.now());
 
   useEffect(() => {
-    api.getOperatorApplication(id).then(setApp).catch((e) => setErr(e.message));
+    api.getOperatorApplication(id).then((data) => {
+      setApp(data);
+      setResubmit({
+        businessName: data.businessName || "",
+        businessAddress: data.businessAddress || "",
+        contactPhone: data.contactPhone || "",
+        activityDescription: data.activityDescription || "",
+      });
+    }).catch((e) => setErr(e.message));
     api.getFlaggedItems(id).then(setFlagged).catch(() => {});
   }, [id]);
 
@@ -110,6 +118,14 @@ export default function OperatorApplicationPage() {
   if (!app) return <main className="app-shell">{err ? <p className="error">{err}</p> : <p>Loading...</p>}</main>;
 
   const canResubmit = app.statusLabel === "Pending Pre-Site Resubmission" || app.statusLabel === "Awaiting Post-Site Resubmission";
+  const unresolvedIssueDocIds = new Set(
+    (app.officerComments || [])
+      .filter((c) => c.targetDocumentId && c.resolved === false)
+      .map((c) => c.targetDocumentId),
+  );
+  const issueDocuments = (app.documents || []).filter(
+    (d) => unresolvedIssueDocIds.has(d.id) || d.aiVerificationStatus === "FLAGGED" || d.aiVerificationStatus === "FAILED",
+  );
 
   return (
     <main className="app-shell">
@@ -150,10 +166,10 @@ export default function OperatorApplicationPage() {
             {app.officerComments.map((c) => <p key={c.id}>- {c.commentText}</p>)}
           </>
         ) : null}
-        {app.documents?.length ? (
+        {issueDocuments.length ? (
           <>
             <div className="doc-table-header">
-              <h4>Uploaded Documents</h4>
+              <h4>Documents Requiring Fix</h4>
               {docPollActive ? (
                 <p className="doc-poll-meta">
                   <span className="live">Live updates</span>
@@ -166,7 +182,7 @@ export default function OperatorApplicationPage() {
             <table>
               <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th></tr></thead>
               <tbody>
-                {app.documents.map((d) => (
+                {issueDocuments.map((d) => (
                   <tr key={d.id}>
                     <td>{d.originalFileName}</td>
                     <td>{d.documentCategory || "-"}</td>
@@ -181,14 +197,16 @@ export default function OperatorApplicationPage() {
               </tbody>
             </table>
           </>
-        ) : null}
+        ) : (
+          <p className="hint">No unresolved document issues at this time.</p>
+        )}
         <h4>Resubmit Updated Fields</h4>
         {!canResubmit ? <div className="hint">Resubmission is only available when status is Pending Pre-Site Resubmission or Awaiting Post-Site Resubmission.</div> : null}
         <div className="button-grid">
-          <input className="field" placeholder="Business Name (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessName: e.target.value }))} />
-          <input className="field" placeholder="Business Address (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessAddress: e.target.value }))} />
-          <input className="field" placeholder="Contact Phone (optional)" onChange={(e) => setResubmit((r) => ({ ...r, contactPhone: e.target.value }))} />
-          <textarea className="field" placeholder="Activity Description (optional)" onChange={(e) => setResubmit((r) => ({ ...r, activityDescription: e.target.value }))} />
+          <input className="field" value={resubmit.businessName} placeholder="Business Name (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessName: e.target.value }))} />
+          <input className="field" value={resubmit.businessAddress} placeholder="Business Address (optional)" onChange={(e) => setResubmit((r) => ({ ...r, businessAddress: e.target.value }))} />
+          <input className="field" value={resubmit.contactPhone} placeholder="Contact Phone (optional)" onChange={(e) => setResubmit((r) => ({ ...r, contactPhone: e.target.value }))} />
+          <textarea className="field" value={resubmit.activityDescription} placeholder="Activity Description (optional)" onChange={(e) => setResubmit((r) => ({ ...r, activityDescription: e.target.value }))} />
           <button className="btn" disabled={!canResubmit || submitting} onClick={submitResubmit}>
             {submitting ? "Submitting..." : "Submit Resubmission"}
           </button>

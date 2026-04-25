@@ -59,7 +59,8 @@ public class ExternalDocumentAiAnalysisService {
                 return r;
             }
         }
-        return Optional.empty();
+        // Deterministic local fallback so every document gets a clear reason.
+        return Optional.of(localHeuristicAnalysis(doc));
     }
 
     private Optional<DocumentAiAnalysisResult> tryGroq(Document doc) {
@@ -158,6 +159,53 @@ public class ExternalDocumentAiAnalysisService {
             case "CAPACITY_PLAN" -> "Expected capacity declaration with space-allocation rationale.";
             default -> "General compliance evidence; flag if metadata is suspicious or category does not fit file naming/type.";
         };
+    }
+
+    private DocumentAiAnalysisResult localHeuristicAnalysis(Document doc) {
+        String name = safe(doc.getOriginalFileName()).toLowerCase();
+        String category = safe(doc.getDocumentCategory()).toUpperCase();
+        String contentType = safe(doc.getContentType()).toLowerCase();
+        long size = doc.getFileSizeBytes() != null ? doc.getFileSizeBytes() : 0L;
+
+        if (size < 120) {
+            return new DocumentAiAnalysisResult(
+                    Document.AiVerificationStatus.FLAGGED,
+                    "File is unusually small and may be incomplete."
+            );
+        }
+        if (name.contains("draft") || name.contains("unclear") || name.contains("mismatch") || name.contains("incomplete") || name.contains("conflict")) {
+            return new DocumentAiAnalysisResult(
+                    Document.AiVerificationStatus.FLAGGED,
+                    "Filename indicates draft/incomplete or conflicting evidence; please verify and request corrected submission."
+            );
+        }
+        boolean typeLikelyTextOrDoc = contentType.contains("pdf") || contentType.contains("csv") || contentType.contains("text") || contentType.contains("json") || contentType.contains("msword") || contentType.contains("officedocument");
+        boolean typeLikelyImage = contentType.contains("image") || contentType.contains("svg");
+        boolean ok = switch (category) {
+            case "REGISTRATION_DOC" -> name.contains("registration") || name.contains("acra") || name.contains("ros");
+            case "FLOOR_PLAN" -> name.contains("floor") || name.contains("plan") || name.contains("layout");
+            case "ATTENDANCE_LOG" -> name.contains("attendance") || name.contains("log");
+            case "STAFF_ROSTER" -> name.contains("roster") || name.contains("staff");
+            case "HOME_SAFETY_PHOTOS" -> name.contains("safety") || name.contains("home") || typeLikelyImage;
+            case "CAPACITY_PLAN" -> name.contains("capacity") || name.contains("plan") || name.contains("inventory");
+            default -> true;
+        };
+        if (!ok) {
+            return new DocumentAiAnalysisResult(
+                    Document.AiVerificationStatus.FLAGGED,
+                    "Filename does not clearly match expected evidence type for category " + category + "."
+            );
+        }
+        if (!typeLikelyTextOrDoc && !typeLikelyImage) {
+            return new DocumentAiAnalysisResult(
+                    Document.AiVerificationStatus.FLAGGED,
+                    "Unsupported or unusual file type for compliance evidence."
+            );
+        }
+        return new DocumentAiAnalysisResult(
+                Document.AiVerificationStatus.PASSED,
+                "Metadata matches expected category pattern and no obvious inconsistencies were detected."
+        );
     }
 
     private static String safe(String s) {

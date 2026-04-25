@@ -3,6 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../apiClient";
 import { TRACK_OPTIONS, requirementsForTrack, requiredCategoriesForTrack } from "../documentRequirements";
 
+const BUSINESS_TYPE_OPTIONS = [
+  "Early Childhood Development Centre (ECDC)",
+  "Student Care Centre (SCFA)",
+  "Home for the Aged (HFAA)",
+  "Childminding Pilot Service",
+  "Children's Home",
+  "Adult Disability Home",
+  "Welfare Home",
+  "Family Service Centre",
+  "Other MSF-Regulated Service",
+];
+
 export default function OperatorSubmitPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
@@ -124,7 +136,19 @@ export default function OperatorSubmitPage() {
           >
             {TRACK_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
-          <input className="field" placeholder="Business Type" value={form.businessType} onChange={(e) => onChange("businessType", e.target.value)} required />
+          <select
+            className="field"
+            value={form.businessType}
+            onChange={(e) => onChange("businessType", e.target.value)}
+            required
+          >
+            <option value="">Select Business Type (MSF)</option>
+            {BUSINESS_TYPE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
           <input className="field" placeholder="Business Address" value={form.businessAddress} onChange={(e) => onChange("businessAddress", e.target.value)} required />
           <input className="field" placeholder="Contact Phone" value={form.contactPhone} onChange={(e) => onChange("contactPhone", e.target.value)} />
           <textarea className="field" placeholder="Activity Description" value={form.activityDescription} onChange={(e) => onChange("activityDescription", e.target.value)} required />

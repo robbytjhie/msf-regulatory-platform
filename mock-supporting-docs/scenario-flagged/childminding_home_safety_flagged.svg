@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#f8f2f2"/>
+  <rect x="120" y="120" width="960" height="560" rx="20" fill="#fffefe" stroke="#e3c6c6"/>
+  <rect x="180" y="540" width="840" height="100" rx="10" fill="#d8c9c9"/>
+  <line x1="260" y1="250" x2="460" y2="520" stroke="#8a8a8a" stroke-width="8"/>
+  <line x1="460" y1="250" x2="260" y2="520" stroke="#8a8a8a" stroke-width="8"/>
+  <rect x="740" y="280" width="120" height="180" fill="#f7d27a" stroke="#8b5a00"/>
+  <rect x="880" y="300" width="130" height="90" fill="#d6e3f0" stroke="#53708a"/>
+  <circle cx="350" cy="430" r="22" fill="#b84545"/>
+  <text x="350" y="438" text-anchor="middle" font-family="Arial" font-size="20" fill="#fff">!</text>
+  <text x="600" y="95" text-anchor="middle" font-family="Arial" font-size="26" fill="#7a1f1f">Mock Home Safety Photo (FLAGGED)</text>
+  <text x="600" y="710" text-anchor="middle" font-family="Arial" font-size="20" fill="#7a1f1f">Clutter/hazard indicators and no visible safety gate</text>
+</svg>
+

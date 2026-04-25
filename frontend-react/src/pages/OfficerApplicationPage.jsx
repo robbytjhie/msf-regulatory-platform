@@ -41,10 +41,15 @@ export default function OfficerApplicationPage() {
   const [docPollActive, setDocPollActive] = useState(false);
   const [lastDocPollAt, setLastDocPollAt] = useState(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [selectedIssueDocIds, setSelectedIssueDocIds] = useState([]);
 
   useEffect(() => {
     api.getOfficerApplication(id).then((d) => {
       setApp(d);
+      const defaultIssueDocIds = (d.documents || [])
+        .filter((doc) => doc.aiVerificationStatus === "FLAGGED" || doc.aiVerificationStatus === "FAILED")
+        .map((doc) => doc.id);
+      setSelectedIssueDocIds(defaultIssueDocIds);
       const allowed = transitionMap[d.internalStatus] || [];
       setNewStatus(allowed[0] || d.internalStatus || "UNDER_REVIEW");
     }).catch((e) => setErr(e.message));
@@ -100,10 +105,23 @@ export default function OfficerApplicationPage() {
       setSubmitting(true);
       setErr("");
       setOk("");
+      const documentFixComments = selectedIssueDocIds.map((docId) => {
+        const doc = app.documents?.find((d) => d.id === docId);
+        const reason = doc?.aiVerificationNotes || "Document requires correction based on officer review.";
+        return {
+          commentText: `[Document Fix Required] ${doc?.originalFileName || "Document"} (${doc?.documentCategory || "-"}) - ${reason}`,
+          targetSection: "document",
+          targetDocumentId: docId,
+        };
+      });
+      const commentsPayload = [
+        ...(comment ? [{ commentText: comment, targetSection: null, targetDocumentId: null }] : []),
+        ...documentFixComments,
+      ];
       const updated = await api.submitOfficerFeedback(id, {
         newStatus,
         statusNotes: "Updated from React dashboard",
-        comments: comment ? [{ commentText: comment, targetSection: null }] : [],
+        comments: commentsPayload,
       });
       setApp(updated);
       setComment("");
@@ -113,6 +131,16 @@ export default function OfficerApplicationPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const addAiReasonToComment = (doc) => {
+    const reason = doc?.aiVerificationNotes || "AI reason not available.";
+    const line = `[AI reason] ${doc?.originalFileName || "Document"} (${doc?.documentCategory || "-"}) - ${reason}`;
+    setComment((prev) => (prev ? `${prev}\n${line}` : line));
+    setOk("AI reason inserted into officer comment. You can edit before submit.");
+  };
+  const toggleIssueDoc = (docId) => {
+    setSelectedIssueDocIds((prev) => (prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]));
   };
 
   if (!app) return <main className="app-shell">{err ? <p className="error">{err}</p> : <p>Loading...</p>}</main>;
@@ -222,10 +250,18 @@ export default function OfficerApplicationPage() {
               </p>
             </div>
             <table>
-              <thead><tr><th>File</th><th>Category</th><th>AI status</th><th>Notes (why flagged, etc.)</th></tr></thead>
+              <thead><tr><th>Require Fix</th><th>File</th><th>Category</th><th>AI status</th><th>Notes (why flagged, etc.)</th><th>Action</th></tr></thead>
               <tbody>
                 {app.documents.map((d) => (
                   <tr key={d.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIssueDocIds.includes(d.id)}
+                        onChange={() => toggleIssueDoc(d.id)}
+                        title="Mark this document as still requiring operator fix"
+                      />
+                    </td>
                     <td>{d.originalFileName}</td>
                     <td>{d.documentCategory || "—"}</td>
                     <td>
@@ -234,6 +270,17 @@ export default function OfficerApplicationPage() {
                       </span>
                     </td>
                     <td>{d.aiVerificationNotes || "—"}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn secondary"
+                        onClick={() => addAiReasonToComment(d)}
+                        disabled={!d.aiVerificationNotes}
+                        title="Insert this AI reason into the feedback comment"
+                      >
+                        Use AI reason
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

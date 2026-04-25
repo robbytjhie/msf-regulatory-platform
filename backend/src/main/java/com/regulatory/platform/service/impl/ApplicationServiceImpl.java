@@ -206,11 +206,20 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         if (request.comments() != null) {
             request.comments().forEach(commentReq -> {
+                Document targetDocument = null;
+                if (commentReq.targetDocumentId() != null) {
+                    targetDocument = application.getDocuments().stream()
+                            .filter(d -> d.getId().equals(commentReq.targetDocumentId()))
+                            .findFirst()
+                            .orElseThrow(() -> new InvalidRequestException(
+                                    "Target document does not belong to this application: " + commentReq.targetDocumentId()));
+                }
                 OfficerComment comment = OfficerComment.builder()
                         .application(application)
                         .officer(officer)
                         .commentText(commentReq.commentText())
                         .targetSection(commentReq.targetSection())
+                        .targetDocument(targetDocument)
                         .submissionRound(application.getSubmissionRound())
                         .resolved(false)
                         .build();

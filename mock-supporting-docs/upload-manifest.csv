@@ -1,0 +1,14 @@
+scenario,file_name,recommended_category,intent
+PASS,registration_doc_acra_extract.txt,REGISTRATION_DOC,Should look legitimate
+PASS,ecdc_floor_plan_revision_notes.txt,FLOOR_PLAN,Should look like proper plan notes
+PASS,scfa_attendance_log_2026-03.csv,ATTENDANCE_LOG,Should look internally consistent
+PASS,hfaa_staff_roster_verification.csv,STAFF_ROSTER,Should look consistent
+PASS,hfaa_fire_safety_certificate_summary.txt,SANITATION_AND_FIRE_CERT,Should look current and compliant
+PASS,childminding_capacity_plan_2026.txt,CAPACITY_PLAN,Should look feasible
+PASS,childminding_home_safety_pass.svg,HOME_SAFETY_PHOTOS,Safe environment visual
+FLAGGED,registration_unclear_draft.txt,REGISTRATION_DOC,Ambiguous legal details
+FLAGGED,floorplan_missing_details.csv,FLOOR_PLAN,Missing essential floor plan context
+FLAGGED,scfa_attendance_claim_mismatch_2026-03.csv,ATTENDANCE_LOG,Attendance vs claim mismatch pattern
+FLAGGED,hfaa_staff_roster_incomplete.txt,STAFF_ROSTER,Incomplete staffing evidence
+FLAGGED,childminding_capacity_conflict.csv,CAPACITY_PLAN,Capacity/equipment inconsistency
+FLAGGED,childminding_home_safety_flagged.svg,HOME_SAFETY_PHOTOS,Hazard indicators visual

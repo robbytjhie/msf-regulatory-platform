@@ -1,0 +1,6 @@
+Project: ECDC Renewal
+Scale: 1:100
+Total Indoor Usable Area: 320 sqm
+Outdoor Play Area: 180 sqm
+Declared Child Capacity: 110
+Notes: Includes revised classroom zoning and emergency egress paths.
