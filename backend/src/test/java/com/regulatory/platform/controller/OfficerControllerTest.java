@@ -1,12 +1,17 @@
 package com.regulatory.platform.controller;
 
 import com.regulatory.platform.config.IntegrationTestBase;
+import com.regulatory.platform.repository.DocumentRepository;
+import com.regulatory.platform.service.LocalDocumentStorageService;
 import com.regulatory.platform.enums.ApplicationStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+
+import java.nio.file.Files;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -14,6 +19,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @DisplayName("OfficerController — UC2 Review & Feedback")
 class OfficerControllerTest extends IntegrationTestBase {
+    @Autowired private DocumentRepository documentRepository;
+    @Autowired private LocalDocumentStorageService localDocumentStorageService;
 
     @BeforeEach
     void setup() { seedUsers(); }
@@ -289,6 +296,79 @@ class OfficerControllerTest extends IntegrationTestBase {
                             .header("Authorization", bearerOf(operator)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.statusHistory[0].toStatusLabel").value("Submitted"));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/officer/documents/{id}/download")
+    class DownloadDocument {
+        @Test
+        @DisplayName("Officer can download existing stored document")
+        void download_existingDocument_returnsFile() throws Exception {
+            var submitResult = mockMvc.perform(post("/api/operator/applications")
+                            .header("Authorization", bearerOf(operator))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                {
+                                  "businessName":"X",
+                                  "licensingTrack":"ECDC",
+                                  "businessType":"Retail",
+                                  "businessAddress":"1 St",
+                                  "contactPhone":"+65 9000 0001",
+                                  "activityDescription":"desc",
+                                  "documents":[
+                                    {
+                                      "originalFileName":"registration_doc_acra_extract.txt",
+                                      "contentType":"text/plain",
+                                      "fileSizeBytes":520,
+                                      "documentCategory":"REGISTRATION_DOC"
+                                    },
+                                    {
+                                      "originalFileName":"floor-plan.pdf",
+                                      "contentType":"application/pdf",
+                                      "fileSizeBytes":888,
+                                      "documentCategory":"FLOOR_PLAN"
+                                    }
+                                  ]
+                                }
+                                """))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            long appId = objectMapper.readTree(submitResult.getResponse().getContentAsString())
+                    .path("data").path("id").asLong();
+            var app = documentRepository.findByIdWithApplicationAndOperator(
+                            objectMapper.readTree(mockMvc.perform(get("/api/officer/applications/" + appId)
+                                            .header("Authorization", bearerOf(officer)))
+                                    .andReturn().getResponse().getContentAsString())
+                                    .path("data").path("documents").get(0).path("id").asLong())
+                    .orElseThrow();
+
+            mockMvc.perform(get("/api/officer/documents/" + app.getId() + "/download")
+                            .header("Authorization", bearerOf(officer)))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("Content-Disposition", containsString("filename=")))
+                    .andExpect(header().string("Content-Type", not(isEmptyOrNullString())));
+        }
+
+        @Test
+        @DisplayName("Missing stored file returns 404")
+        void download_missingStoredFile_returns404() throws Exception {
+            var app = seedApplication(operator, ApplicationStatus.APPLICATION_RECEIVED);
+            var doc = documentRepository.save(com.regulatory.platform.entity.Document.builder()
+                    .application(app)
+                    .originalFileName("x.txt")
+                    .storedFileName("missing-file.txt")
+                    .contentType("text/plain")
+                    .fileSizeBytes(10L)
+                    .documentCategory("REGISTRATION_DOC")
+                    .submissionRound(1)
+                    .build());
+            Files.deleteIfExists(localDocumentStorageService.resolve("missing-file.txt"));
+
+            mockMvc.perform(get("/api/officer/documents/" + doc.getId() + "/download")
+                            .header("Authorization", bearerOf(officer)))
+                    .andExpect(status().isNotFound());
         }
     }
 }

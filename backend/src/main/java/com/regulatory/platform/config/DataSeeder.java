@@ -18,6 +18,7 @@ import com.regulatory.platform.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,6 +27,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @RequiredArgsConstructor
 @Slf4j
 public class DataSeeder {
+    @Value("${app.seed.enabled:true}")
+    private boolean seedEnabled;
+    @Value("${app.seed.reset-on-startup:false}")
+    private boolean resetOnStartup;
 
     @Bean
     CommandLineRunner seedData(
@@ -41,15 +46,24 @@ public class DataSeeder {
             PasswordEncoder passwordEncoder) {
 
         return args -> {
-            clarificationThreadRepository.deleteAllInBatch();
-            checklistItemRepository.deleteAllInBatch();
-            officerCommentRepository.deleteAllInBatch();
-            documentRepository.deleteAllInBatch();
-            statusHistoryRepository.deleteAllInBatch();
-            notificationRepository.deleteAllInBatch();
-            applicationRepository.deleteAllInBatch();
-            apiAuditLogRepository.deleteAllInBatch();
-            userRepository.deleteAllInBatch();
+            if (!seedEnabled) {
+                log.info("Demo seeding disabled via app.seed.enabled=false");
+                return;
+            }
+            if (resetOnStartup) {
+                clarificationThreadRepository.deleteAllInBatch();
+                checklistItemRepository.deleteAllInBatch();
+                officerCommentRepository.deleteAllInBatch();
+                documentRepository.deleteAllInBatch();
+                statusHistoryRepository.deleteAllInBatch();
+                notificationRepository.deleteAllInBatch();
+                applicationRepository.deleteAllInBatch();
+                apiAuditLogRepository.deleteAllInBatch();
+                userRepository.deleteAllInBatch();
+            } else if (userRepository.count() > 0) {
+                log.info("Existing data found. Skipping demo reset/seed to preserve persisted state.");
+                return;
+            }
 
             User officer = userRepository.save(User.builder()
                     .email("officer@gov.sg")
