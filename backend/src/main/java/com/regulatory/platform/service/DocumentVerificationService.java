@@ -1,0 +1,63 @@
+package com.regulatory.platform.service;
+
+import com.regulatory.platform.entity.Document;
+import com.regulatory.platform.repository.DocumentRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class DocumentVerificationService {
+
+    private final DocumentRepository documentRepository;
+    private final ExternalDocumentAiAnalysisService externalDocumentAiAnalysisService;
+
+    @Async
+    @Transactional
+    public void startSimulatedVerification(Long applicationId) {
+        // Allow submit transaction to complete before reading.
+        sleep(1200);
+        List<Document> docs = documentRepository.findByApplicationIdOrderByCreatedAtDesc(applicationId);
+        for (Document doc : docs) {
+            doc.setAiVerificationStatus(Document.AiVerificationStatus.PROCESSING);
+            doc.setAiVerificationNotes("AI verification in progress...");
+        }
+        documentRepository.saveAll(docs);
+
+        for (Document doc : docs) {
+            sleep(800 + ThreadLocalRandom.current().nextInt(1200));
+            externalDocumentAiAnalysisService.analyze(doc).ifPresentOrElse(
+                    result -> {
+                        doc.setAiVerificationStatus(result.status());
+                        doc.setAiVerificationNotes(result.notes());
+                    },
+                    () -> {
+                        boolean flagged = ThreadLocalRandom.current().nextDouble() < 0.25;
+                        doc.setAiVerificationStatus(flagged
+                                ? Document.AiVerificationStatus.FLAGGED
+                                : Document.AiVerificationStatus.PASSED);
+                        doc.setAiVerificationNotes(flagged
+                                ? "Potential inconsistency detected. Officer review recommended."
+                                : "No issues detected by simulated AI verification.");
+                    });
+            documentRepository.save(doc);
+            log.info("Document {} verification complete: {}", doc.getId(), doc.getAiVerificationStatus());
+        }
+    }
+
+    /** Package-private so tests can override with no-op sleeps. */
+    void sleep(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}

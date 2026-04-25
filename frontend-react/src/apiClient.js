@@ -25,6 +25,7 @@ export const api = {
   submitApplication: (payload) =>
     apiRequest("/api/operator/applications", { method: "POST", body: JSON.stringify(payload) }),
   getOperatorApplication: (id) => apiRequest(`/api/operator/applications/${id}`),
+  getOperatorDocumentStatuses: (id) => apiRequest(`/api/operator/applications/${id}/documents/status`),
   resubmitApplication: (id, payload) =>
     apiRequest(`/api/operator/applications/${id}/resubmit`, { method: "PATCH", body: JSON.stringify(payload) }),
   getFlaggedItems: (id) => apiRequest(`/api/operator/applications/${id}/checklist/flagged`),

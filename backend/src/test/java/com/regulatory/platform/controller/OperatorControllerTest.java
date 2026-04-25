@@ -181,6 +181,62 @@ class OperatorControllerTest extends IntegrationTestBase {
         }
     }
 
+    // ── Document AI status polling ───────────────────────────────
+
+    @Nested
+    @DisplayName("GET /api/operator/applications/{id}/documents/status")
+    class GetDocumentStatuses {
+
+        @Test
+        @DisplayName("Operator polls document AI statuses after submit with attachments")
+        void getStatuses_ownApplication_returns200() throws Exception {
+            String submitJson = """
+                    {
+                      "businessName": "Doc Test Co",
+                      "businessType": "Retail",
+                      "businessAddress": "1 Doc Street",
+                      "contactPhone": "+65 9000 0000",
+                      "activityDescription": "Testing document polling",
+                      "documents": [
+                        {
+                          "originalFileName": "floor-plan.pdf",
+                          "contentType": "application/pdf",
+                          "fileSizeBytes": 888,
+                          "documentCategory": "Layout"
+                        }
+                      ]
+                    }
+                    """;
+            var mvcResult = mockMvc.perform(post("/api/operator/applications")
+                            .header("Authorization", bearerOf(operator))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(submitJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+            long appId = objectMapper.readTree(mvcResult.getResponse().getContentAsString())
+                    .path("data")
+                    .path("id")
+                    .asLong();
+
+            mockMvc.perform(get("/api/operator/applications/" + appId + "/documents/status")
+                            .header("Authorization", bearerOf(operator)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data", hasSize(1)))
+                    .andExpect(jsonPath("$.data[0].originalFileName").value("floor-plan.pdf"))
+                    .andExpect(jsonPath("$.data[0].aiVerificationStatus", anyOf(is("PENDING"), is("PROCESSING"))));
+        }
+
+        @Test
+        @DisplayName("ROLE ISOLATION — another operator cannot poll document statuses")
+        void getStatuses_otherOperatorsApp_returns403() throws Exception {
+            var otherApp = seedApplication(operator2, ApplicationStatus.UNDER_REVIEW);
+
+            mockMvc.perform(get("/api/operator/applications/" + otherApp.getId() + "/documents/status")
+                            .header("Authorization", bearerOf(operator)))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
     // ── Resubmission ─────────────────────────────────────────────
 
     @Nested

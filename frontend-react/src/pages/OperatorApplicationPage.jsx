@@ -13,11 +13,50 @@ export default function OperatorApplicationPage() {
   const [ok, setOk] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [respondingId, setRespondingId] = useState(null);
+  const [docPollActive, setDocPollActive] = useState(false);
+  const [lastDocPollAt, setLastDocPollAt] = useState(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
 
   useEffect(() => {
     api.getOperatorApplication(id).then(setApp).catch((e) => setErr(e.message));
     api.getFlaggedItems(id).then(setFlagged).catch(() => {});
   }, [id]);
+
+  useEffect(() => {
+    if (!app?.documents?.length) {
+      setDocPollActive(false);
+      return;
+    }
+    const pending = app.documents.some(
+      (d) => d.aiVerificationStatus === "PENDING" || d.aiVerificationStatus === "PROCESSING"
+    );
+    setDocPollActive(pending);
+  }, [app?.documents]);
+
+  useEffect(() => {
+    if (!docPollActive || !id) return;
+    const run = async () => {
+      try {
+        const docs = await api.getOperatorDocumentStatuses(id);
+        setLastDocPollAt(Date.now());
+        setApp((prev) => (prev ? { ...prev, documents: docs } : prev));
+        if (!docs.some((d) => d.aiVerificationStatus === "PENDING" || d.aiVerificationStatus === "PROCESSING")) {
+          setDocPollActive(false);
+        }
+      } catch {
+        // Ignore polling blips; detail view remains usable.
+      }
+    };
+    run();
+    const timer = window.setInterval(run, 2000);
+    return () => window.clearInterval(timer);
+  }, [id, docPollActive]);
+
+  useEffect(() => {
+    if (!docPollActive) return;
+    const t = window.setInterval(() => setNowTick(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [docPollActive]);
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -83,6 +122,38 @@ export default function OperatorApplicationPage() {
           <>
             <h4>Officer Feedback</h4>
             {app.officerComments.map((c) => <p key={c.id}>- {c.commentText}</p>)}
+          </>
+        ) : null}
+        {app.documents?.length ? (
+          <>
+            <div className="doc-table-header">
+              <h4>Uploaded Documents</h4>
+              {docPollActive ? (
+                <p className="doc-poll-meta">
+                  <span className="live">Live updates</span>
+                  {lastDocPollAt != null
+                    ? ` · Last updated ${Math.max(0, Math.floor((nowTick - lastDocPollAt) / 1000))}s ago`
+                    : " · syncing…"}
+                </p>
+              ) : null}
+            </div>
+            <table>
+              <thead><tr><th>File</th><th>Category</th><th>AI Verification</th><th>Notes</th></tr></thead>
+              <tbody>
+                {app.documents.map((d) => (
+                  <tr key={d.id}>
+                    <td>{d.originalFileName}</td>
+                    <td>{d.documentCategory || "-"}</td>
+                    <td>
+                      <span className={`badge ${d.aiVerificationStatus === "PASSED" ? "badge-green" : d.aiVerificationStatus === "FLAGGED" ? "badge-red" : "badge-amber"}`}>
+                        {d.aiVerificationStatus || "PENDING"}
+                      </span>
+                    </td>
+                    <td>{d.aiVerificationNotes || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </>
         ) : null}
         <h4>Resubmit Updated Fields</h4>

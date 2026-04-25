@@ -5,6 +5,7 @@ import com.regulatory.platform.dto.request.OfficerFeedbackRequest;
 import com.regulatory.platform.dto.request.ResubmitRequest;
 import com.regulatory.platform.dto.response.ApplicationDetailResponse;
 import com.regulatory.platform.dto.response.ApplicationSummaryResponse;
+import com.regulatory.platform.dto.response.DocumentResponse;
 import com.regulatory.platform.entity.User;
 
 import java.util.List;
@@ -28,6 +29,9 @@ public interface ApplicationService {
 
     // UC1 — Operator lists their own applications
     List<ApplicationSummaryResponse> listForOperator(User operator);
+
+    // UC1 — Operator polls per-document AI verification statuses
+    List<DocumentResponse> getOperatorDocumentStatuses(Long applicationId, User operator);
 
     // UC2 — Officer requests more info / sets status
     ApplicationDetailResponse submitOfficerFeedback(Long applicationId,

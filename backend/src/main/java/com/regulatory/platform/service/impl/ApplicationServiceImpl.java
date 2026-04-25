@@ -5,6 +5,7 @@ import com.regulatory.platform.dto.request.OfficerFeedbackRequest;
 import com.regulatory.platform.dto.request.ResubmitRequest;
 import com.regulatory.platform.dto.response.ApplicationDetailResponse;
 import com.regulatory.platform.dto.response.ApplicationSummaryResponse;
+import com.regulatory.platform.dto.response.DocumentResponse;
 import com.regulatory.platform.entity.*;
 import com.regulatory.platform.enums.ApplicationStatus;
 import com.regulatory.platform.enums.NotificationType;
@@ -14,6 +15,7 @@ import com.regulatory.platform.exception.ForbiddenOperationException;
 import com.regulatory.platform.exception.InvalidStatusTransitionException;
 import com.regulatory.platform.repository.*;
 import com.regulatory.platform.service.ApplicationService;
+import com.regulatory.platform.service.DocumentVerificationService;
 import com.regulatory.platform.service.NotificationService;
 import com.regulatory.platform.service.StatusTransitionService;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final OfficerCommentRepository officerCommentRepository;
     private final StatusTransitionService statusTransitionService;
     private final NotificationService notificationService;
+    private final DocumentVerificationService documentVerificationService;
 
     // ── UC1: Operator Submission ──────────────────────────────────
 
@@ -57,6 +60,26 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .build();
 
         application = applicationRepository.save(application);
+
+        if (request.documents() != null) {
+            for (ApplicationSubmitRequest.DocumentUploadRequest docReq : request.documents()) {
+                Document doc = Document.builder()
+                        .application(application)
+                        .originalFileName(docReq.originalFileName())
+                        .storedFileName("simulated-" + UUID.randomUUID())
+                        .contentType(docReq.contentType() != null ? docReq.contentType() : "application/octet-stream")
+                        .fileSizeBytes(docReq.fileSizeBytes())
+                        .documentCategory(docReq.documentCategory())
+                        .submissionRound(application.getSubmissionRound())
+                        .aiVerificationStatus(Document.AiVerificationStatus.PENDING)
+                        .aiVerificationNotes("Verification queued")
+                        .build();
+                application.getDocuments().add(doc);
+            }
+            application = applicationRepository.save(application);
+            documentVerificationService.startSimulatedVerification(application.getId());
+        }
+
         recordStatusHistory(application, null, ApplicationStatus.APPLICATION_RECEIVED, operator,
                 "Initial submission");
 
@@ -150,6 +173,17 @@ public class ApplicationServiceImpl implements ApplicationService {
         return applicationRepository.findByOperatorWithUsers(operator)
                 .stream()
                 .map(ApplicationSummaryResponse::forOperator)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DocumentResponse> getOperatorDocumentStatuses(Long applicationId, User operator) {
+        Application application = findWithUsersOrThrow(applicationId);
+        assertOperatorOwns(application, operator);
+        Hibernate.initialize(application.getDocuments());
+        return application.getDocuments().stream()
+                .map(DocumentResponse::from)
                 .toList();
     }
 

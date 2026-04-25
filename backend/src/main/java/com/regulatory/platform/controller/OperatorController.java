@@ -7,6 +7,7 @@ import com.regulatory.platform.dto.response.ApiResponse;
 import com.regulatory.platform.dto.response.ApplicationDetailResponse;
 import com.regulatory.platform.dto.response.ApplicationSummaryResponse;
 import com.regulatory.platform.dto.response.ChecklistItemResponse;
+import com.regulatory.platform.dto.response.DocumentResponse;
 import com.regulatory.platform.entity.User;
 import com.regulatory.platform.repository.UserRepository;
 import com.regulatory.platform.service.ApplicationService;
@@ -58,6 +59,15 @@ public class OperatorController {
 
         User operator = resolveUser(principal);
         return ResponseEntity.ok(ApiResponse.ok(applicationService.getForOperator(id, operator)));
+    }
+
+    // UC1: Poll document AI verification statuses
+    @GetMapping("/applications/{id}/documents/status")
+    public ResponseEntity<ApiResponse<List<DocumentResponse>>> getDocumentStatuses(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails principal) {
+        User operator = resolveUser(principal);
+        return ResponseEntity.ok(ApiResponse.ok(applicationService.getOperatorDocumentStatuses(id, operator)));
     }
 
     // UC1: Resubmit — only changed fields required

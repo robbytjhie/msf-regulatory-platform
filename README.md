@@ -79,6 +79,33 @@ For first-time local Minikube use:
 
 ---
 
+## IM8 / GovTech Security Baseline Implemented
+
+The following controls were added to align with an IM8-style baseline for dev/staging:
+
+- Login rate limiting on `/api/auth/login` (configurable max attempts and window)
+- Security headers in backend responses:
+  - HSTS
+  - CSP (`default-src 'self'`)
+  - `X-Content-Type-Options`
+  - referrer policy
+- Stricter CORS by environment variable:
+  - `APP_CORS_ALLOWED_ORIGIN_PATTERNS`
+- Kubernetes `securityContext` hardening in `infra/k8s/msf.yaml`:
+  - `seccompProfile: RuntimeDefault`
+  - `allowPrivilegeEscalation: false`
+  - Linux capability drop (`ALL`)
+- Persistent API audit log table (`api_audit_logs`) for API access events:
+  - method, path, status, duration, client IP, origin, user identity (when available), user-agent
+
+Tunable security environment variables:
+
+- `APP_LOGIN_RATE_LIMIT_MAX_ATTEMPTS` (default `5`)
+- `APP_LOGIN_RATE_LIMIT_WINDOW_SECONDS` (default `300`)
+- `APP_CORS_ALLOWED_ORIGIN_PATTERNS` (comma-separated allowed origins/patterns)
+
+---
+
 ## Authentication
 
 Authentication uses **email/password login + JWT bearer token**.
@@ -100,6 +127,23 @@ Authorization is role-based at endpoint level:
 JWT secret source:
 - `app.jwt.secret` from environment variable `APP_JWT_SECRET`
 - dev fallback is set in `application.properties` for local testing
+
+### Optional document AI (free-tier APIs)
+
+Document verification can call an external model using **metadata only** (filename, MIME type, size, category). File contents are not sent until upload storage is implemented.
+
+Priority: **Groq** first, then **Hugging Face Inference** if Groq returns no usable result or is not configured. If neither key is set, the backend keeps the **built-in random simulation**.
+
+| Variable | Purpose |
+|----------|---------|
+| `GROQ_API_KEY` | [Groq](https://console.groq.com/) OpenAI-compatible chat API (free tier limits apply) |
+| `GROQ_BASE_URL` | Optional API host override (default `https://api.groq.com`; useful for tests or proxies) |
+| `GROQ_MODEL` | Optional override (default `llama-3.1-8b-instant`) |
+| `HF_API_TOKEN` | [Hugging Face](https://huggingface.co/settings/tokens) inference token |
+| `HF_INFERENCE_BASE_URL` | Optional inference host (default `https://api-inference.huggingface.co`) |
+| `HF_MODEL` | Optional model id (default `HuggingFaceTB/SmolLM2-360M-Instruct`) |
+
+Do not commit API keys; use environment variables or your secret manager.
 
 ---
 
