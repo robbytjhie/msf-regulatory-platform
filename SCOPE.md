@@ -47,46 +47,39 @@ end-to-end lifecycle without over-engineering secondary concerns.
 
 ## Assumptions
 
-1. **Status mapping is authoritative.** The table in UC2 is implemented exactly as
-   specified. Any ambiguous transition (e.g. officer re-triggering UNDER_REVIEW from
-   PRE_SITE_RESUBMITTED) is included in the state machine.
-
-2. **Internal status remains hidden from operator APIs.** `internalStatus` is always
-   `null` for operator-facing responses; operators rely on the mapped `statusLabel`
-   for workflow guidance.
-
-3. **"No need to re-enter entire application"** means a PATCH endpoint accepting only
+1. **"No need to re-enter entire application"** means a PATCH endpoint accepting only
    changed fields (`ResubmitRequest` has all nullable fields).
 
-4. **Document upload** is a separate concern from form submission. Files can be added
+2. **Document upload** is a separate concern from form submission. Files can be added
    during submission or resubmission. The backend models are fully in place; the
    multipart endpoint is the only missing implementation.
 
-5. **Checklist items are seeded** because the spec doesn't describe how they are
+3. **Checklist items are seeded** because the spec doesn't describe how they are
    created (presumably templated per licence type). The `DataSeeder` inserts a realistic
    5-item checklist for the demo application.
 
-6. **"Automatic operator notification"** (UC2) is implemented as in-app notifications
+4. **"Automatic operator notification"** (UC2) is implemented as in-app notifications
    with SSE live push and external email attempts. If SMTP fails, in-app notification
    persistence still succeeds (non-blocking fallback).
 
-7. **AI fallback state is an explicit extension.** `MANUAL_OFFICER_VALIDATION` was added
+5. **AI fallback state is an explicit extension.** `MANUAL_OFFICER_VALIDATION` was added
    to support business continuity when AI verification is unavailable.
 
 ---
 
 ## Tech Stack
 
-**Backend:** Spring Boot 3.2 / Java 21, Spring Security (JWT/stateless), Spring Data JPA,
-H2 in-memory, Lombok, Bean Validation. Layered architecture: entity → repository →
+**Backend:** Spring Boot 3.4.5 / Java 21, Spring Security (JWT/stateless), Spring Data JPA,
+H2 in-memory, Lombok, Bean Validation, JJWT 0.12.5. Layered architecture: entity -> repository ->
 service → controller. No Spring MVC views — pure REST API.
 
-**Frontend:** React + Vite (`frontend-react`) with route guards and role-based pages
+**Frontend:** React 19.2.5 + Vite 8.0.10 (`frontend-react`) with route guards and role-based pages
 for officer/operator workflows. The design system keeps the same government-utility
 visual language (status badges, cards, workflow cues), with improved interaction states
 (loading, confirmation, pagination, and explicit pending-action labels).
 
-**Testing:** Unit + integration tests across status transitions, auth/role isolation,
+**Testing:** Vitest 4.1.5 + Playwright 1.59.1 for frontend and Spring Boot test stack for backend;
+unit + integration tests across status transitions, auth/role isolation,
 officer/operator controller paths, notification stream auth, seeding controls, and
 coverage-sensitive regression paths.
 
@@ -98,7 +91,6 @@ coverage-sensitive regression paths.
    secure binary persistence and content scanning.
 2. **Template-driven notification service** — externalize email templates/recipients and
    add delivery telemetry + retry policy.
-3. **Pagination + sorting** on list endpoints for production-scale datasets.
-4. **Admin operations** — officer assignment UI + user lifecycle management.
-5. **Advanced AI validation** — OCR/content extraction and policy rule explainability.
-6. **Observability hardening** — metrics dashboards, alerting, and distributed tracing.
+3. **Admin operations** — officer assignment UI + user lifecycle management.
+4. **Advanced AI validation** — OCR/content extraction and policy rule explainability.
+5. **Observability hardening** — metrics dashboards, alerting, and distributed tracing.

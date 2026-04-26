@@ -29,13 +29,20 @@ Regulatory and Licensing Platform - Debrief Script (1 Page)
 - Supports officer download/open endpoint.
 
 4) AI usage (how I used tools)
-- I used AI assistants to accelerate boilerplate and repetitive refactors, then manually verified and corrected business-critical logic.
+- I primarily used Cursor throughout implementation (coding loops, refactors, tests, and documentation reconciliation), with Claude used mainly to set up the initial project foundation/scaffolding.
+- I used AI to accelerate boilerplate and repetitive refactors, then manually verified and corrected business-critical logic.
 - Typical prompt style: provide exact entity/state context, expected constraints, and output format.
 - I verified generated code by:
   - building backend/frontend after each substantive change,
   - checking state transitions against mapping tables,
   - testing key UX loops (submit -> review -> return -> resubmit).
 - I discarded/reworked AI output when it conflicted with workflow rules or real UI behavior.
+- I owned final implementation decisions and acceptance criteria; AI suggestions were drafts, not final deliverables.
+
+Toolchain versions used in this codebase:
+- Backend: Spring Boot 3.4.5, Java 21, Maven Wrapper 3.9.6, JJWT 0.12.5
+- Frontend: React 19.2.5, React Router DOM 7.14.2, Vite 8.0.10, Vitest 4.1.5, Playwright 1.59.1
+- Auth helper service: Fastify 5.8.5, @fastify/cors 11.2.0, dotenv 17.4.2
 
 5) Key trade-offs and known gaps
 - Local file storage is implemented for MVP, but no external object storage (S3/GCS) yet.
@@ -43,6 +50,6 @@ Regulatory and Licensing Platform - Debrief Script (1 Page)
 
 6) What I would do next
 - Replace local document storage with object storage + signed URLs.
-- Implement OCR/full-content analysis
+- Implement OCR/full-content analysis.
 - Add SSE/WebSocket for immediate dashboard updates.
 - Expand checklist templates/configuration per licensing track via admin-maintained metadata.

@@ -325,7 +325,7 @@ Frontend unit tests:
 
 ```bash
 cd frontend-react
-npm test
+npm run test:unit
 ```
 
 Backend includes unit and integration coverage for status transitions, controller auth,
@@ -337,8 +337,24 @@ paths for round-snapshot cleanup.
 ## AI Usage
 
 ### Tools Used
-- **Cursor AI assistants** (Claude + Codex) for implementation acceleration
-- **Cursor terminal assistance** for test loops, CI failure triage, and log/debug command drafting
+- **Cursor IDE / Agent workflow** as the primary implementation assistant across coding, debugging, refactoring, and docs reconciliation
+- **Claude in Cursor** used mainly for initial scaffolding/foundation generation in the early phase
+- **Codex 5.3 in Cursor** used heavily for iterative feature completion, fixes, tests, and documentation alignment
+- **Cursor terminal assistance** used for test loops, CI failure triage, and log/debug command drafting
+
+### Exact Project Toolchain Versions (From Repository Config)
+- Java: `21` (`backend/pom.xml` -> `<java.version>21</java.version>`)
+- Maven Wrapper: `3.9.6` (`backend/.mvn/wrapper/maven-wrapper.properties`)
+- Spring Boot: `3.4.5` (`backend/pom.xml` parent)
+- JJWT: `0.12.5` (`backend/pom.xml`)
+- React: `19.2.5` (`frontend-react/package.json`)
+- React Router DOM: `7.14.2` (`frontend-react/package.json`)
+- Vite: `8.0.10` (`frontend-react/package.json`)
+- Vitest: `4.1.5` (`frontend-react/package.json`)
+- Playwright: `1.59.1` (`frontend-react/package.json`)
+- Fastify (`auth-node`): `5.8.5` (`auth-node/package.json`)
+- `@fastify/cors` (`auth-node`): `11.2.0` (`auth-node/package.json`)
+- `dotenv` (`auth-node`): `17.4.2` (`auth-node/package.json`)
 
 ### How AI Was Used
 
@@ -388,8 +404,6 @@ Example prompts used:
 
 **Where Claude was less helpful:**
 
-- The frontend CSS was written manually. Claude's initial suggestion was generic and
-  did not match the government-utility aesthetic intended.
 - Claude initially placed business logic in controllers. I refactored all non-trivial
   logic into the service layer.
 - Some generated docs drifted from real implementation state after rapid iterations; I
@@ -397,10 +411,12 @@ Example prompts used:
 
 **Honest assessment:**
 
-Claude significantly accelerated the boilerplate (entities, repositories, DTOs,
-security filter). The business logic — status machine rules, role isolation, the
-operator vs officer DTO split — required careful human review. The AI output was
-treated as a first draft that needed validation, not a finished product.
+Cursor assistance significantly accelerated boilerplate and repetitive changes, while
+I remained responsible for implementation, rule validation, and final code
+quality. Claude helped set up initial foundation pieces, the bulk of iterative
+delivery (business logic refinement, bug fixing, testing, and doc corrections) was done
+through repeated Cursor-driven edit/test loops under my review. AI output was treated
+as a draft, not an authoritative final implementation.
 
 ---
 
@@ -428,6 +444,21 @@ treated as a first draft that needed validation, not a finished product.
 
 - No full multipart binary file ingestion pipeline yet (current local file flow writes/serves placeholder content for demoability)
 - AI verification remains metadata-based (filename/type/size/category) without OCR/content extraction
-- No pagination on list endpoints
 - No admin UI for user provisioning
-- No production-grade identity lifecycle features (self-registration, reset, MFA)
+
+---
+
+## Why This Stack and Version Choice
+
+- **Spring Boot 3.4.5 + Java 21:** Fast, opinionated backend delivery with strong ecosystem support, while staying on current LTS Java for interview-friendly production realism and long-term maintainability.
+- **Java 21 feature used in implementation:** Notification email dispatch uses `Executors.newVirtualThreadPerTaskExecutor()` inside a try-with-resources block. This leverages Java 21's `ExecutorService` as `AutoCloseable` and keeps blocking SMTP work isolated on a lightweight virtual thread.
+- **React 19 + Vite 8:** Rapid frontend iteration and clean component architecture for role-based workflows; Vite keeps local feedback loops fast for demo development.
+- **Spring Security + JWT:** Stateless auth model that clearly demonstrates role isolation (`OFFICER` vs `OPERATOR`) and API-first access control in a way that maps directly to UC requirements.
+- **H2 for MVP runtime:** Zero-friction local setup for evaluator reproducibility, while keeping repository/service boundaries ready for migration to a production database.
+- **Vitest + Playwright + Spring tests:** Balanced test strategy across service logic, API behavior, and critical UI flows; this supports confidence in state transitions and regression-sensitive paths.
+- **Version pinning in repo config:** Key framework/tool versions are explicitly defined in `pom.xml`, Maven wrapper, and `package.json` so setup remains deterministic across machines.
+
+Java runtime implementation used in local development: **Eclipse Temurin OpenJDK 21.0.10 LTS (HotSpot JVM)**.
+This gives strong runtime performance, mature GC behavior, and predictable long-term support across Windows/Linux environments.
+
+These choices optimize for delivery speed, correctness of business rules, and reviewability under a time-boxed MVP, while keeping a clear path to production hardening.

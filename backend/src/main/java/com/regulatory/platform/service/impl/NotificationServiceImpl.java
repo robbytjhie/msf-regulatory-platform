@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 
 @Service
 @RequiredArgsConstructor
@@ -94,8 +96,19 @@ public class NotificationServiceImpl implements NotificationService {
         email.setSubject(content.subject());
         email.setText(withSignature(content.body()));
         try {
-            mailSender.send(email);
+            // Java 21: ExecutorService is AutoCloseable; we scope a virtual-thread executor with try-with-resources.
+            try (var emailExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
+                emailExecutor.submit(() -> mailSender.send(email)).get();
+            }
             log.info("Email notification sent to {} for application {}", targetEmail, application.getReferenceNumber());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            log.warn("Email notification thread interrupted for {} on {}",
+                    targetEmail, application.getReferenceNumber());
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause() == null ? ex : ex.getCause();
+            log.warn("Failed to send email notification to {} for {}: {}",
+                    targetEmail, application.getReferenceNumber(), cause.getMessage());
         } catch (Exception ex) {
             // Keep in-app notification flow resilient even if SMTP is unavailable.
             log.warn("Failed to send email notification to {} for {}: {}",

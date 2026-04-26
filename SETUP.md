@@ -1,11 +1,16 @@
 # Regulatory Platform — Setup Guide (Windows Desktop)
 
 ## Prerequisites
-- **Java 21 recommended** (`java -version`)
-- **Maven** (bundled via `mvnw.cmd`) 
-- **Node.js + npm** (for React frontend)
+- **Java 21** (`java -version`)
+- **Maven Wrapper 3.9.6** (bundled via `mvnw.cmd`)
+- **Node.js + npm** (for React frontend; supports current Vite 8 toolchain)
 - **Docker Desktop** (for Docker/Minikube flows)
 - **Minikube + kubectl** (optional, for Kubernetes local deployment)
+
+Project-pinned framework/runtime versions from source:
+- Backend: Spring Boot `3.4.5`, Java `21`, JJWT `0.12.5`
+- Frontend: React `19.2.5`, React Router DOM `7.14.2`, Vite `8.0.10`, Vitest `4.1.5`, Playwright `1.59.1`
+- Auth helper service: Fastify `5.8.5`, `@fastify/cors` `11.2.0`, `dotenv` `17.4.2`
 
 ---
 
@@ -129,11 +134,3 @@ minikube service frontend-react -n msf --url
 If you see `ImagePullBackOff`, rebuild images after running `minikube docker-env`.
 
 ---
-
-## Bugs Fixed
-
-| # | File | Issue | Fix |
-|---|------|-------|-----|
-| 1 | `backend/mvnw` | File corrupted — contained "Host not in allowlist" instead of shell script | Replaced with proper Maven Wrapper shell script |
-| 2 | Root | No startup scripts for Windows | Added `start-all.cmd`, `start-backend.cmd`, `start-frontend.cmd` |
-| 3 | Root | Frontend startup was legacy static hosting | Updated scripts to use React Vite dev server on port 5173 |
