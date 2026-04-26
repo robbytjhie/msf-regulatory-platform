@@ -26,7 +26,7 @@ Regulatory and Licensing Platform - Debrief Script (1 Page)
 - Role-based access controls are enforced in Spring Security and endpoint design.
 - Error handling returns user-readable frontend messages.
 - Checklist submit now blocks if any item remains PENDING to prevent accidental auto-route to approval.
-- Document storage now writes local files in backend/local-documents and supports officer download/open endpoint.
+- Supports officer download/open endpoint.
 
 4) AI usage (how I used tools)
 - I used AI assistants to accelerate boilerplate and repetitive refactors, then manually verified and corrected business-critical logic.
@@ -40,11 +40,9 @@ Regulatory and Licensing Platform - Debrief Script (1 Page)
 5) Key trade-offs and known gaps
 - Local file storage is implemented for MVP, but no external object storage (S3/GCS) yet.
 - AI verification is metadata-based (filename/type/size/category), not OCR/full-content analysis.
-- Real-time updates use polling, not WebSocket/SSE push.
-- Notification delivery is in-app/log driven; no email gateway integration yet.
 
 6) What I would do next
 - Replace local document storage with object storage + signed URLs.
-- Add integration tests covering role isolation and status transitions end-to-end.
+- Implement OCR/full-content analysis
 - Add SSE/WebSocket for immediate dashboard updates.
 - Expand checklist templates/configuration per licensing track via admin-maintained metadata.
